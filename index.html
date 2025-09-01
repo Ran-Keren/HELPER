@@ -67,18 +67,18 @@ input, textarea, select {
 img#preview {
   max-width: 150px;
   max-height: 150px;
-  margin: 0px 0;
+  margin: 8px 0;
   height: auto;
   border: 1px solid #ccc;
   border-radius: 6px;
 }
 
-img { max-width: 100%; margin: 0px 0; height: auto; }
+img { max-width: 100%; margin: 8px 0; height: auto; }
 
 .note, .event, .social {
   border: 1px solid #ddd;
   padding: 8px;
-  margin: 0px 0;
+  margin: 6px 0;
   border-radius: 6px;
   text-align: right;
   word-wrap: break-word;
@@ -87,7 +87,7 @@ img { max-width: 100%; margin: 0px 0; height: auto; }
 
 .reply {
   margin-right: 20px;
-  margin-top: 0px;
+  margin-top: 6px;
   border-right: 2px solid #1976d2;
   padding-right: 6px;
   font-size: 1.3rem;
@@ -96,7 +96,7 @@ img { max-width: 100%; margin: 0px 0; height: auto; }
 
 label {
   font-weight: bold;
-  margin-top: 0px;
+  margin-top: 6px;
   display: block;
   text-align: right;
   font-size: 1.2rem;
@@ -110,7 +110,7 @@ label {
   h2 { font-size: 1.8rem; }
   h3 { font-size: 1.4rem; }
   h4 { font-size: 1.2rem; }
-  button { width: 90%; padding: 6px; font-size: 1.2rem; margin: 0px 0; }
+  button { width: 90%; padding: 6px; font-size: 1.2rem; margin: 3px 0; }
   input, textarea, select { padding: 6px; font-size: 1.2rem; }
   .note, .event, .social { font-size: 1.2rem; padding: 6px; }
 }
@@ -121,7 +121,7 @@ label {
 
   <div id="view-grades">
     <!-- Logo only on first page -->
-    <img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:200px; margin:0px auto; display:block;">
+    <img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:200px; margin:10px auto; display:block;">
 
     <h3>בחר שכבת גיל</h3>
     <button onclick="openGrade('ז')">ז</button>
@@ -382,7 +382,7 @@ function loadNotes() {
       const deleteBtn = document.createElement("button");
       deleteBtn.innerText = "🗑️ מחק";
       deleteBtn.style.background = "#d32f2f";
-      deleteBtn.style.marginLeft = "0px";
+      deleteBtn.style.marginLeft = "4px";
       deleteBtn.onclick = async () => {
         if(confirm("למחוק הערה זו?")) {
           await doc.ref.delete();
