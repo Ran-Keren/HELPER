@@ -1,203 +1,256 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="he">
 <head>
-  <meta charset="UTF-8">
-  <title>מקצועות לפי שכבה</title>
-  <script type="module">
-    // Import Firebase
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-    import { 
-      getAuth, signInAnonymously, onAuthStateChanged 
-    } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-    import { 
-      getFirestore, collection, doc, setDoc, addDoc, onSnapshot, 
-      serverTimestamp, updateDoc, deleteDoc, query, orderBy 
-    } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
-    import { 
-      getStorage, ref, uploadBytesResumable, getDownloadURL 
-    } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-storage.js";
-
-    // 🔧 Your Firebase config
-    const firebaseConfig = {
-      apiKey: "AIzaSyA8JW7C-tvAw1E-2rNthoI9yG-C4zjWjM4",
-      authDomain: "helper-a6ca2.firebaseapp.com",
-      projectId: "helper-a6ca2",
-      storageBucket: "helper-a6ca2.firebasestorage.app",
-      messagingSenderId: "710212458048",
-      appId: "1:710212458048:web:07836147ad31f5d89b71a5",
-      measurementId: "G-CC5T42YKLD"
-    };
-
-    // Init Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const storage = getStorage(app);
-
-    const GRADES = ["ז", "ח", "ט"];
-    const DEFAULT_SUBJECTS = ["ספרות", "תנ״ך", "היסטוריה", "חשבון", "אנגלית"];
-
-    // --- Auth & Presence ---
-    let currentUser = null;
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        await signInAnonymously(auth);
-      } else {
-        currentUser = user;
-        setupPresence(user.uid);
-      }
-    });
-
-    function setupPresence(uid) {
-      const presRef = doc(db, "presence", uid);
-      setDoc(presRef, { uid, lastSeen: serverTimestamp() }, { merge: true });
-      setInterval(() => {
-        updateDoc(presRef, { lastSeen: serverTimestamp() });
-      }, 25000);
-
-      const presCol = collection(db, "presence");
-      onSnapshot(presCol, (snap) => {
-        let count = 0;
-        const now = Date.now();
-        snap.forEach(d => {
-          const last = d.data().lastSeen?.toDate?.();
-          if (last && now - last.getTime() < 60000) count++;
-        });
-        document.getElementById("online-count").textContent = count;
-      });
-    }
-
-    // --- UI Navigation ---
-    function showHome() {
-      document.getElementById("home").style.display = "block";
-      document.getElementById("grade-view").style.display = "none";
-    }
-    function showGrade(grade) {
-      document.getElementById("home").style.display = "none";
-      document.getElementById("grade-view").style.display = "block";
-      document.getElementById("grade-title").textContent = "כיתה " + grade;
-      document.getElementById("subject-list").innerHTML = "";
-      loadSubjects(grade);
-      document.getElementById("subject-form").onsubmit = (e) => {
-        e.preventDefault();
-        addSubject(grade);
-      };
-    }
-
-    // --- Load subjects realtime ---
-    function loadSubjects(grade) {
-      const qRef = query(collection(db, "grades", grade, "subjects"), orderBy("createdAt", "desc"));
-      onSnapshot(qRef, (snap) => {
-        const list = document.getElementById("subject-list");
-        list.innerHTML = "";
-        snap.forEach((docSnap) => {
-          const s = docSnap.data();
-          const item = document.createElement("div");
-          item.className = "subject";
-          item.innerHTML = `
-            <h4>${s.name}</h4>
-            ${s.imageUrl ? `<img src=\"${s.imageUrl}\" style=\"max-width:200px\">` : ""}
-            <p>${s.description || ""}</p>
-            <button onclick=\"deleteSubject('${grade}','${docSnap.id}')\">מחק</button>
-          `;
-          list.appendChild(item);
-        });
-        // Mark defaults
-        markDefaults(snap.docs.map(d => d.data().name));
-      });
-    }
-
-    function markDefaults(existingNames) {
-      const defList = document.getElementById("default-subjects");
-      defList.innerHTML = "";
-      DEFAULT_SUBJECTS.forEach(name => {
-        const has = existingNames.includes(name);
-        const div = document.createElement("div");
-        div.textContent = name + (has ? " ✓" : "");
-        div.style.padding = "4px";
-        div.style.border = "1px solid #aaa";
-        div.style.margin = "2px";
-        div.style.background = has ? "#dfffd6" : "#f9f9f9";
-        defList.appendChild(div);
-      });
-    }
-
-    // --- Add subject ---
-    async function addSubject(grade) {
-      const name = document.getElementById("subject-name").value.trim();
-      const desc = document.getElementById("subject-desc").value.trim();
-      const file = document.getElementById("subject-img").files[0];
-      if (!name) { alert("נא למלא שם מקצוע"); return; }
-
-      let url = null;
-      if (file) {
-        const path = `subjects/${Date.now()}-${file.name}`;
-        const refFile = ref(storage, path);
-        await uploadBytesResumable(refFile, file);
-        url = await getDownloadURL(refFile);
-      }
-
-      await addDoc(collection(db, "grades", grade, "subjects"), {
-        name, description: desc, imageUrl: url, createdAt: serverTimestamp()
-      });
-
-      document.getElementById("subject-form").reset();
-    }
-
-    // --- Delete subject ---
-    async function deleteSubject(grade, id) {
-      if (!confirm("למחוק?")) return;
-      await deleteDoc(doc(db, "grades", grade, "subjects", id));
-    }
-
-    // Expose delete for inline button
-    window.deleteSubject = deleteSubject;
-
-    // --- Init home buttons ---
-    window.onload = () => {
-      const gradeBtns = document.getElementById("grades");
-      GRADES.forEach(g => {
-        const btn = document.createElement("button");
-        btn.textContent = g;
-        btn.onclick = () => showGrade(g);
-        gradeBtns.appendChild(btn);
-      });
-    };
-  </script>
-  <style>
-    body { font-family: Arial, sans-serif; background:#f0f4f8; padding:20px; }
-    button { margin:5px; padding:10px 15px; border-radius:6px; border:1px solid #ccc; cursor:pointer; }
-    .subject { border:1px solid #ccc; margin:10px 0; padding:10px; border-radius:6px; background:#fff; }
-  </style>
+<meta charset="UTF-8">
+<title>Helper School App</title>
+<style>
+body { font-family: Arial, sans-serif; direction: rtl; text-align: center; background: #f7f7f7; }
+.container { margin: 20px auto; max-width: 600px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+button { padding: 10px 20px; margin: 5px; border: none; background: #1976d2; color: white; border-radius: 5px; cursor: pointer; }
+button:hover { background: #1565c0; }
+.hidden { display: none; }
+input, textarea, select { width: 90%; padding: 8px; margin: 5px 0; }
+img { max-width: 150px; margin: 10px 0; }
+.note { border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 5px; text-align: right; }
+</style>
 </head>
 <body>
-  <header>
-    <h1>📚 מקצועות לפי שכבה</h1>
-    <p>מחוברים כעת: <span id="online-count">0</span></p>
-  </header>
+<div class="container">
+<h2>📚 אפליקציית בית ספר</h2>
 
-  <section id="home">
-    <h2>בחר שכבה</h2>
-    <div id="grades"></div>
-  </section>
+<div id="view-grades">
+  <h3>בחר שכבת גיל</h3>
+  <button onclick="openGrade('ז')">ז</button>
+  <button onclick="openGrade('ח')">ח</button>
+  <button onclick="openGrade('ט')">ט</button>
+</div>
 
-  <section id="grade-view" style="display:none">
-    <button onclick="showHome()">⬅ חזרה</button>
-    <h2 id="grade-title"></h2>
+<div id="view-subjects" class="hidden">
+  <h3 id="subject-title"></h3>
+  <div id="subject-list"></div>
+  <h3>📂 קטגוריות נוספות</h3>
+  <div id="category-list"></div>
+  <button onclick="backToGrades()">⬅ חזרה</button>
+</div>
 
-    <h3>מקצועות ברירת מחדל</h3>
-    <div id="default-subjects"></div>
+<div id="view-form" class="hidden">
+  <h3 id="form-title"></h3>
+  <input type="text" id="comment" placeholder="שם התלמיד"><br>
+  <textarea id="description" placeholder="תיאור"></textarea><br>
+  <input type="file" id="imageInput"><br>
+  <img id="preview" class="hidden"><br>
+  <button onclick="saveSubject()">💾 שמור</button>
+  <button onclick="backToSubjects()">⬅ חזרה</button>
+  <h3>📌 הערות שמורות</h3>
+  <div id="notes-list"></div>
+</div>
 
-    <h3>הוסף מקצוע</h3>
-    <form id="subject-form">
-      <input id="subject-name" placeholder="שם מקצוע"><br>
-      <textarea id="subject-desc" placeholder="תיאור"></textarea><br>
-      <input type="file" id="subject-img"><br>
-      <button type="submit">שמור</button>
-    </form>
+<div id="view-sport-events" class="hidden">
+  <h3>ספורט - תזמון אירועים</h3>
+  <select id="sport-event-select">
+    <option value="כדורגל">כדורגל</option>
+    <option value="כדורסל">כדורסל</option>
+    <option value="ריצה">ריצה</option>
+  </select><br>
+  <input type="date" id="sport-date"><br>
+  <input type="time" id="sport-time"><br>
+  <button onclick="saveSportEvent()">💾 שמור אירוע</button>
+  <button onclick="backToSubjects()">⬅ חזרה</button>
+</div>
 
-    <h3>מקצועות קיימים</h3>
-    <div id="subject-list"></div>
-  </section>
+<div id="view-social-meeting" class="hidden">
+  <h3>מפגש חברתי</h3>
+  <button onclick="addSocialMeeting('מיקום')">בחר מיקום</button>
+  <button onclick="addSocialMeeting('זמן')">בחר זמן</button>
+  <button onclick="backToSubjects()">⬅ חזרה</button>
+</div>
+
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA8JW7C-tvAw1E-2rNthoI9yG-C4zjWjM4",
+  authDomain: "helper-a6ca2.firebaseapp.com",
+  projectId: "helper-a6ca2",
+  storageBucket: "helper-a6ca2.appspot.com",
+  messagingSenderId: "710212458048",
+  appId: "1:710212458048:web:bf0726a7f5cbf25c9b71a5",
+  measurementId: "G-T5YL5RC934"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+const defaultSubjects = ["מדעים","ערבית","היסטוריה","מתמטיקה","אנגלית","גאוגרפיה","שפה"];
+const extraCategories = ["מפגש חברתי","ספורט","הצעות לשיפור או בקשות"];
+
+let currentGrade = null;
+let currentSubject = null;
+let selectedFile = null;
+let unsubscribe = null;
+
+function openGrade(grade) {
+  currentGrade = grade;
+  document.getElementById("view-grades").classList.add("hidden");
+  document.getElementById("view-subjects").classList.remove("hidden");
+  document.getElementById("subject-title").innerText = "מקצועות בשכבת " + grade;
+
+  const subjectList = document.getElementById("subject-list");
+  subjectList.innerHTML = "";
+  defaultSubjects.forEach(sub => {
+    const btn = document.createElement("button");
+    btn.innerText = sub;
+    btn.onclick = () => openForm(sub);
+    subjectList.appendChild(btn);
+  });
+
+  const catList = document.getElementById("category-list");
+  catList.innerHTML = "";
+  extraCategories.forEach(cat => {
+    const btn = document.createElement("button");
+    btn.innerText = cat;
+    if(cat === "ספורט") btn.onclick = openSportEvents;
+    else if(cat === "מפגש חברתי") btn.onclick = openSocialMeeting;
+    else btn.onclick = () => openForm(cat);
+    catList.appendChild(btn);
+  });
+}
+
+function backToGrades() {
+  document.getElementById("view-subjects").classList.add("hidden");
+  document.getElementById("view-form").classList.add("hidden");
+  document.getElementById("view-sport-events").classList.add("hidden");
+  document.getElementById("view-social-meeting").classList.add("hidden");
+  document.getElementById("view-grades").classList.remove("hidden");
+}
+
+function backToSubjects() {
+  document.getElementById("view-form").classList.add("hidden");
+  document.getElementById("view-sport-events").classList.add("hidden");
+  document.getElementById("view-social-meeting").classList.add("hidden");
+  document.getElementById("view-subjects").classList.remove("hidden");
+}
+
+document.getElementById("imageInput").addEventListener("change", e => {
+  selectedFile = e.target.files[0];
+  if(selectedFile){
+    const reader = new FileReader();
+    reader.onload = e2 => {
+      const img = document.getElementById("preview");
+      img.src = e2.target.result;
+      img.classList.remove("hidden");
+    };
+    reader.readAsDataURL(selectedFile);
+  }
+});
+
+function openForm(subject) {
+  currentSubject = subject;
+  document.getElementById("view-subjects").classList.add("hidden");
+  document.getElementById("view-form").classList.remove("hidden");
+  document.getElementById("form-title").innerText = "הוספת הערה ל: " + subject;
+
+  document.getElementById("comment").value = "";
+  document.getElementById("description").value = "";
+  document.getElementById("imageInput").value = "";
+  document.getElementById("preview").classList.add("hidden");
+  selectedFile = null;
+  loadNotes();
+}
+
+async function saveSubject() {
+  const comment = document.getElementById("comment").value.trim();
+  const description = document.getElementById("description").value.trim();
+  if(!comment || !description){ alert("אנא מלא את כל השדות"); return; }
+
+  try {
+    let imageUrl = "";
+    if(selectedFile){
+      const ref = storage.ref(`${currentGrade}/${currentSubject}/${Date.now()}-${selectedFile.name}`);
+      await ref.put(selectedFile);
+      imageUrl = await ref.getDownloadURL();
+    }
+
+    const subjectRef = db.collection("grades").doc(currentGrade)
+                         .collection("subjects").doc(currentSubject);
+    await subjectRef.set({ createdAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    await subjectRef.collection("comments").add({
+      comment,
+      description,
+      imageUrl: imageUrl || "",
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    alert("נשמר בהצלחה!");
+    document.getElementById("view-form").classList.add("hidden");
+    backToGrades();
+  } catch(err){
+    console.error(err);
+    alert("שגיאה בשמירה: "+err.message);
+  }
+}
+
+function loadNotes() {
+  const list = document.getElementById("notes-list");
+  list.innerHTML = "";
+  const ref = db.collection("grades").doc(currentGrade)
+    .collection("subjects").doc(currentSubject)
+    .collection("comments").orderBy("timestamp","desc");
+
+  unsubscribe = ref.onSnapshot(snapshot=>{
+    list.innerHTML="";
+    snapshot.forEach(doc=>{
+      const note = doc.data();
+      const div = document.createElement("div");
+      div.className="note";
+      div.innerHTML=`<h4>${note.comment}</h4><p>${note.description}</p>`+
+                    (note.imageUrl ? `<img src="${note.imageUrl}">` : "");
+      list.appendChild(div);
+    });
+  });
+}
+
+// Sport events with date & time pickers
+function openSportEvents(){
+  document.getElementById("view-subjects").classList.add("hidden");
+  document.getElementById("view-sport-events").classList.remove("hidden");
+}
+
+function saveSportEvent(){
+  const eventName = document.getElementById("sport-event-select").value;
+  const date = document.getElementById("sport-date").value;
+  const time = document.getElementById("sport-time").value;
+  if(!date || !time){ alert("אנא בחר תאריך ושעה"); return; }
+  db.collection("grades").doc(currentGrade)
+    .collection("sport_events").add({
+      name: eventName,
+      date,
+      time,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  alert("אירוע נשמר!");
+}
+
+// Social meeting buttons
+function openSocialMeeting(){
+  document.getElementById("view-subjects").classList.add("hidden");
+  document.getElementById("view-social-meeting").classList.remove("hidden");
+}
+
+function addSocialMeeting(type){
+  const value = prompt(`הזן ${type} למפגש החברתי`);
+  if(value){
+    db.collection("grades").doc(currentGrade)
+      .collection("social_meetings").add({
+        [type]: value,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    alert("נשמר בהצלחה!");
+  }
+}
+</script>
 </body>
 </html>
