@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Helper School App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <style>
 html, body {
   height: 100%;
@@ -12,6 +13,7 @@ html, body {
   direction: rtl;
   text-align: center;
   background: #f7f7f7;
+  overflow: hidden; /* disable scrolling */
 }
 
 body {
@@ -26,7 +28,7 @@ body {
   margin: 0;
   padding: 20px;
   box-sizing: border-box;
-  overflow-y: auto;
+  overflow-y: auto; /* allow scrolling inside container */
   background: white;
   display: flex;
   flex-direction: column;
@@ -60,6 +62,16 @@ input, textarea, select {
   box-sizing: border-box;
 }
 
+/* uploaded image preview restricted */
+img#preview {
+  max-width: 200px;
+  max-height: 200px;
+  margin: 15px 0;
+  height: auto;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
 img { max-width: 100%; margin: 15px 0; height: auto; }
 
 .note, .event, .social {
@@ -83,7 +95,6 @@ label {
 #cancelImageBtn {
   background: #d32f2f;
 }
-
 #cancelImageBtn:hover { background: #b71c1c; }
 
 @media (max-width: 480px) {
@@ -246,22 +257,26 @@ function backToSubjects() {
 document.getElementById("imageInput").addEventListener("change", e => {
   selectedFile = e.target.files[0];
   const cancelBtn = document.getElementById("cancelImageBtn");
+  const preview = document.getElementById("preview");
+
   if(selectedFile){
+    cancelBtn.classList.remove("hidden");
     const reader = new FileReader();
     reader.onload = e2 => {
-      const img = document.getElementById("preview");
-      img.src = e2.target.result;
-      img.classList.remove("hidden");
-      cancelBtn.classList.remove("hidden");
+      preview.src = e2.target.result;
+      preview.classList.remove("hidden");
     };
     reader.readAsDataURL(selectedFile);
-  }
+  } else cancelImage();
 });
 
 function cancelImage(){
   selectedFile = null;
-  document.getElementById("imageInput").value = "";
-  document.getElementById("preview").classList.add("hidden");
+  const input = document.getElementById("imageInput");
+  const preview = document.getElementById("preview");
+  input.value = "";
+  preview.src = "";
+  preview.classList.add("hidden");
   document.getElementById("cancelImageBtn").classList.add("hidden");
 }
 
@@ -270,7 +285,6 @@ function openForm(subject) {
   document.getElementById("view-subjects").classList.add("hidden");
   document.getElementById("view-form").classList.remove("hidden");
   document.getElementById("form-title").innerText = "הוספת הערה ל: " + subject;
-
   document.getElementById("comment").value = "";
   document.getElementById("description").value = "";
   cancelImage();
@@ -285,9 +299,10 @@ async function saveSubject() {
   try {
     let imageUrl = "";
     if(selectedFile){
-      const ref = storage.ref(`${currentGrade}/${currentSubject}/${Date.now()}-${selectedFile.name}`);
-      await ref.put(selectedFile);
-      imageUrl = await ref.getDownloadURL();
+      const storageRef = storage.ref();
+      const fileRef = storageRef.child(`${currentGrade}/${currentSubject}/${Date.now()}-${selectedFile.name}`);
+      await fileRef.put(selectedFile);
+      imageUrl = await fileRef.getDownloadURL();
     }
 
     const subjectRef = db.collection("grades").doc(currentGrade)
@@ -299,11 +314,11 @@ async function saveSubject() {
       imageUrl: imageUrl || "",
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
+
     alert("נשמר בהצלחה!");
-    document.getElementById("view-form").classList.add("hidden");
     backToGrades();
   } catch(err){
-    console.error(err);
+    console.error("Upload error:", err);
     alert("שגיאה בשמירה: "+err.message);
   }
 }
