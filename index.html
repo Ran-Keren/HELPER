@@ -4,25 +4,96 @@
 <meta charset="UTF-8">
 <title>Helper School App</title>
 <style>
-body { font-family: Arial, sans-serif; direction: rtl; text-align: center; background: #f7f7f7; margin:0; padding:0; }
-.container { margin: 20px auto; max-width: 600px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-button { padding: 10px 20px; margin: 5px; border: none; background: #1976d2; color: white; border-radius: 5px; cursor: pointer; font-size: 1rem; }
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  direction: rtl;
+  text-align: center;
+  background: #f7f7f7;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.container {
+  flex: 1;
+  max-width: 100%;
+  margin: 0;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  background: white;
+  display: flex;
+  flex-direction: column;
+}
+
+h2 { font-size: 3rem; margin-bottom: 20px; }
+h3 { font-size: 2.2rem; margin-bottom: 15px; }
+h4 { font-size: 1.8rem; margin-bottom: 10px; }
+
+button {
+  padding: 18px 35px;
+  margin: 10px 5px;
+  border: none;
+  background: #1976d2;
+  color: white;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 2rem;
+  transition: background 0.3s;
+}
+
 button:hover { background: #1565c0; }
+
 .hidden { display: none; }
-input, textarea, select { width: 90%; padding: 10px; margin: 5px 0; font-size: 1rem; }
-img { max-width: 100%; margin: 10px 0; height: auto; }
-.note, .event, .social { border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 5px; text-align: right; word-wrap: break-word; font-size: 1rem; }
 
-/* Labels for date/time */
-label { font-weight: bold; margin-top: 10px; display: block; text-align: right; }
+input, textarea, select {
+  width: 95%;
+  padding: 18px;
+  margin: 8px 0;
+  font-size: 1.8rem;
+  box-sizing: border-box;
+}
 
-/* Responsive for mobile */
+img { max-width: 100%; margin: 15px 0; height: auto; }
+
+.note, .event, .social {
+  border: 1px solid #ddd;
+  padding: 18px;
+  margin: 12px 0;
+  border-radius: 10px;
+  text-align: right;
+  word-wrap: break-word;
+  font-size: 1.8rem;
+}
+
+label {
+  font-weight: bold;
+  margin-top: 10px;
+  display: block;
+  text-align: right;
+  font-size: 1.6rem;
+}
+
+#cancelImageBtn {
+  background: #d32f2f;
+}
+
+#cancelImageBtn:hover { background: #b71c1c; }
+
 @media (max-width: 480px) {
-  .container { width: 95%; padding: 15px; }
-  button { width: 100%; padding: 12px; font-size: 1.1rem; }
-  input, textarea, select { width: 95%; padding: 12px; font-size: 1.1rem; }
-  h2, h3, h4 { font-size: 1.2rem; }
-  .note, .event, .social { font-size: 1rem; padding: 12px; }
+  .container { padding: 15px; }
+  h2 { font-size: 2.6rem; }
+  h3 { font-size: 2rem; }
+  h4 { font-size: 1.6rem; }
+  button { width: 100%; padding: 22px; font-size: 2rem; }
+  input, textarea, select { padding: 16px; font-size: 1.6rem; }
+  .note, .event, .social { font-size: 1.6rem; padding: 16px; }
 }
 </style>
 </head>
@@ -50,6 +121,7 @@ label { font-weight: bold; margin-top: 10px; display: block; text-align: right; 
   <input type="text" id="comment" placeholder="שם התלמיד"><br>
   <textarea id="description" placeholder="תיאור"></textarea><br>
   <input type="file" id="imageInput"><br>
+  <button id="cancelImageBtn" class="hidden" onclick="cancelImage()">❌ בטל תמונה</button><br>
   <img id="preview" class="hidden"><br>
   <button onclick="saveSubject()">💾 שמור</button>
   <button onclick="backToSubjects()">⬅ חזרה</button>
@@ -96,7 +168,6 @@ label { font-weight: bold; margin-top: 10px; display: block; text-align: right; 
   <h3>📌 מפגשים שמורים</h3>
   <div id="social-meetings-list"></div>
 </div>
-
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -104,6 +175,7 @@ label { font-weight: bold; margin-top: 10px; display: block; text-align: right; 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
 
 <script>
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyA8JW7C-tvAw1E-2rNthoI9yG-C4zjWjM4",
   authDomain: "helper-a6ca2.firebaseapp.com",
@@ -126,6 +198,7 @@ let selectedFile = null;
 let unsubscribe = null;
 let selectedSocialLocation = null;
 
+// Functions
 function openGrade(grade) {
   currentGrade = grade;
   document.getElementById("view-grades").classList.add("hidden");
@@ -169,18 +242,28 @@ function backToSubjects() {
   document.getElementById("view-subjects").classList.remove("hidden");
 }
 
+// IMAGE UPLOAD
 document.getElementById("imageInput").addEventListener("change", e => {
   selectedFile = e.target.files[0];
+  const cancelBtn = document.getElementById("cancelImageBtn");
   if(selectedFile){
     const reader = new FileReader();
     reader.onload = e2 => {
       const img = document.getElementById("preview");
       img.src = e2.target.result;
       img.classList.remove("hidden");
+      cancelBtn.classList.remove("hidden");
     };
     reader.readAsDataURL(selectedFile);
   }
 });
+
+function cancelImage(){
+  selectedFile = null;
+  document.getElementById("imageInput").value = "";
+  document.getElementById("preview").classList.add("hidden");
+  document.getElementById("cancelImageBtn").classList.add("hidden");
+}
 
 function openForm(subject) {
   currentSubject = subject;
@@ -190,9 +273,7 @@ function openForm(subject) {
 
   document.getElementById("comment").value = "";
   document.getElementById("description").value = "";
-  document.getElementById("imageInput").value = "";
-  document.getElementById("preview").classList.add("hidden");
-  selectedFile = null;
+  cancelImage();
   loadNotes();
 }
 
