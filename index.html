@@ -4,14 +4,26 @@
 <meta charset="UTF-8">
 <title>Helper School App</title>
 <style>
-body { font-family: Arial, sans-serif; direction: rtl; text-align: center; background: #f7f7f7; }
+body { font-family: Arial, sans-serif; direction: rtl; text-align: center; background: #f7f7f7; margin:0; padding:0; }
 .container { margin: 20px auto; max-width: 600px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-button { padding: 10px 20px; margin: 5px; border: none; background: #1976d2; color: white; border-radius: 5px; cursor: pointer; }
+button { padding: 10px 20px; margin: 5px; border: none; background: #1976d2; color: white; border-radius: 5px; cursor: pointer; font-size: 1rem; }
 button:hover { background: #1565c0; }
 .hidden { display: none; }
-input, textarea, select { width: 90%; padding: 8px; margin: 5px 0; }
-img { max-width: 150px; margin: 10px 0; }
-.note, .event, .social { border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 5px; text-align: right; }
+input, textarea, select { width: 90%; padding: 10px; margin: 5px 0; font-size: 1rem; }
+img { max-width: 100%; margin: 10px 0; height: auto; }
+.note, .event, .social { border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 5px; text-align: right; word-wrap: break-word; font-size: 1rem; }
+
+/* Labels for date/time */
+label { font-weight: bold; margin-top: 10px; display: block; text-align: right; }
+
+/* Responsive for mobile */
+@media (max-width: 480px) {
+  .container { width: 95%; padding: 15px; }
+  button { width: 100%; padding: 12px; font-size: 1.1rem; }
+  input, textarea, select { width: 95%; padding: 12px; font-size: 1.1rem; }
+  h2, h3, h4 { font-size: 1.2rem; }
+  .note, .event, .social { font-size: 1rem; padding: 12px; }
+}
 </style>
 </head>
 <body>
@@ -52,7 +64,9 @@ img { max-width: 150px; margin: 10px 0; }
     <option value="כדורסל">כדורסל</option>
     <option value="ריצה">ריצה</option>
   </select><br>
+  <label for="sport-date">תאריך:</label>
   <input type="date" id="sport-date"><br>
+  <label for="sport-time">שעה:</label>
   <input type="time" id="sport-time"><br>
   <button onclick="saveSportEvent()">💾 שמור אירוע</button>
   <button onclick="backToSubjects()">⬅ חזרה</button>
@@ -72,7 +86,9 @@ img { max-width: 150px; margin: 10px 0; }
   </div>
   <div id="social-datetime" class="hidden">
     <h4 id="selected-location"></h4>
+    <label for="social-date">תאריך:</label>
     <input type="date" id="social-date"><br>
+    <label for="social-time">שעה:</label>
     <input type="time" id="social-time"><br>
     <button onclick="saveSocialMeeting()">💾 שמור מפגש</button>
   </div>
@@ -291,10 +307,7 @@ function saveSocialMeeting(){
       date,
       time,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(()=>{
-      alert("מפגש נשמר!");
-      loadSocialMeetings();
-    });
+    }).then(()=>{ alert("מפגש נשמר!"); loadSocialMeetings(); });
 }
 
 function loadSocialMeetings(){
