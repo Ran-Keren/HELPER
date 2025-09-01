@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>מקצועות לפי שכבה</title>
+  <script type="module">
+    // Import Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+    import { 
+      getAuth, signInAnonymously, onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+    import { 
+      getFirestore, collection, doc, setDoc, addDoc, onSnapshot, 
+      serverTimestamp, updateDoc, deleteDoc, query, orderBy 
+    } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+    import { 
+      getStorage, ref, uploadBytesResumable, getDownloadURL 
+    } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-storage.js";
+
+    // 🔧 Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyA8JW7C-tvAw1E-2rNthoI9yG-C4zjWjM4",
+      authDomain: "helper-a6ca2.firebaseapp.com",
+      projectId: "helper-a6ca2",
+      storageBucket: "helper-a6ca2.firebasestorage.app",
+      messagingSenderId: "710212458048",
+      appId: "1:710212458048:web:07836147ad31f5d89b71a5",
+      measurementId: "G-CC5T42YKLD"
+    };
+
+    // Init Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    const GRADES = ["ז", "ח", "ט"];
+    const DEFAULT_SUBJECTS = ["ספרות", "תנ״ך", "היסטוריה", "חשבון", "אנגלית"];
+
+    // --- Auth & Presence ---
+    let currentUser = null;
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        await signInAnonymously(auth);
+      } else {
+        currentUser = user;
+        setupPresence(user.uid);
+      }
+    });
+
+    function setupPresence(uid) {
+      const presRef = doc(db, "presence", uid);
+      setDoc(presRef, { uid, lastSeen: serverTimestamp() }, { merge: true });
+      setInterval(() => {
+        updateDoc(presRef, { lastSeen: serverTimestamp() });
+      }, 25000);
+
+      const presCol = collection(db, "presence");
+      onSnapshot(presCol, (snap) => {
+        let count = 0;
+        const now = Date.now();
+        snap.forEach(d => {
+          const last = d.data().lastSeen?.toDate?.();
+          if (last && now - last.getTime() < 60000) count++;
+        });
+        document.getElementById("online-count").textContent = count;
+      });
+    }
+
+    // --- UI Navigation ---
+    function showHome() {
+      document.getElementById("home").style.display = "block";
+      document.getElementById("grade-view").style.display = "none";
+    }
+    function showGrade(grade) {
+      document.getElementById("home").style.display = "none";
+      document.getElementById("grade-view").style.display = "block";
+      document.getElementById("grade-title").textContent = "כיתה " + grade;
+      document.getElementById("subject-list").innerHTML = "";
+      loadSubjects(grade);
+      document.getElementById("subject-form").onsubmit = (e) => {
+        e.preventDefault();
+        addSubject(grade);
+      };
+    }
+
+    // --- Load subjects realtime ---
+    function loadSubjects(grade) {
+      const qRef = query(collection(db, "grades", grade, "subjects"), orderBy("createdAt", "desc"));
+      onSnapshot(qRef, (snap) => {
+        const list = document.getElementById("subject-list");
+        list.innerHTML = "";
+        snap.forEach((docSnap) => {
+          const s = docSnap.data();
+          const item = document.createElement("div");
+          item.className = "subject";
+          item.innerHTML = `
+            <h4>${s.name}</h4>
+            ${s.imageUrl ? `<img src=\"${s.imageUrl}\" style=\"max-width:200px\">` : ""}
+            <p>${s.description || ""}</p>
+            <button onclick=\"deleteSubject('${grade}','${docSnap.id}')\">מחק</button>
+          `;
+          list.appendChild(item);
+        });
+        // Mark defaults
+        markDefaults(snap.docs.map(d => d.data().name));
+      });
+    }
+
+    function markDefaults(existingNames) {
+      const defList = document.getElementById("default-subjects");
+      defList.innerHTML = "";
+      DEFAULT_SUBJECTS.forEach(name => {
+        const has = existingNames.includes(name);
+        const div = document.createElement("div");
+        div.textContent = name + (has ? " ✓" : "");
+        div.style.padding = "4px";
+        div.style.border = "1px solid #aaa";
+        div.style.margin = "2px";
+        div.style.background = has ? "#dfffd6" : "#f9f9f9";
+        defList.appendChild(div);
+      });
+    }
+
+    // --- Add subject ---
+    async function addSubject(grade) {
+      const name = document.getElementById("subject-name").value.trim();
+      const desc = document.getElementById("subject-desc").value.trim();
+      const file = document.getElementById("subject-img").files[0];
+      if (!name) { alert("נא למלא שם מקצוע"); return; }
+
+      let url = null;
+      if (file) {
+        const path = `subjects/${Date.now()}-${file.name}`;
+        const refFile = ref(storage, path);
+        await uploadBytesResumable(refFile, file);
+        url = await getDownloadURL(refFile);
+      }
+
+      await addDoc(collection(db, "grades", grade, "subjects"), {
+        name, description: desc, imageUrl: url, createdAt: serverTimestamp()
+      });
+
+      document.getElementById("subject-form").reset();
+    }
+
+    // --- Delete subject ---
+    async function deleteSubject(grade, id) {
+      if (!confirm("למחוק?")) return;
+      await deleteDoc(doc(db, "grades", grade, "subjects", id));
+    }
+
+    // Expose delete for inline button
+    window.deleteSubject = deleteSubject;
+
+    // --- Init home buttons ---
+    window.onload = () => {
+      const gradeBtns = document.getElementById("grades");
+      GRADES.forEach(g => {
+        const btn = document.createElement("button");
+        btn.textContent = g;
+        btn.onclick = () => showGrade(g);
+        gradeBtns.appendChild(btn);
+      });
+    };
+  </script>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f0f4f8; padding:20px; }
+    button { margin:5px; padding:10px 15px; border-radius:6px; border:1px solid #ccc; cursor:pointer; }
+    .subject { border:1px solid #ccc; margin:10px 0; padding:10px; border-radius:6px; background:#fff; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📚 מקצועות לפי שכבה</h1>
+    <p>מחוברים כעת: <span id="online-count">0</span></p>
+  </header>
+
+  <section id="home">
+    <h2>בחר שכבה</h2>
+    <div id="grades"></div>
+  </section>
+
+  <section id="grade-view" style="display:none">
+    <button onclick="showHome()">⬅ חזרה</button>
+    <h2 id="grade-title"></h2>
+
+    <h3>מקצועות ברירת מחדל</h3>
+    <div id="default-subjects"></div>
+
+    <h3>הוסף מקצוע</h3>
+    <form id="subject-form">
+      <input id="subject-name" placeholder="שם מקצוע"><br>
+      <textarea id="subject-desc" placeholder="תיאור"></textarea><br>
+      <input type="file" id="subject-img"><br>
+      <button type="submit">שמור</button>
+    </form>
+
+    <h3>מקצועות קיימים</h3>
+    <div id="subject-list"></div>
+  </section>
+</body>
+</html>
