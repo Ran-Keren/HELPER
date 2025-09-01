@@ -13,7 +13,7 @@ html, body {
   direction: rtl;
   text-align: center;
   background: #f7f7f7;
-  overflow: hidden; /* prevent zoom & scrolling */
+  overflow: hidden;
 }
 
 body {
@@ -25,11 +25,11 @@ body {
 .container {
   flex: 1;
   max-width: 100%;
-  height: 100vh; /* full viewport height */
+  height: 100vh;
   margin: 0;
   padding: 10px;
   box-sizing: border-box;
-  overflow-y: auto; /* allow scrolling inside container if needed */
+  overflow-y: auto;
   background: white;
   display: flex;
   flex-direction: column;
@@ -64,7 +64,6 @@ input, textarea, select {
   box-sizing: border-box;
 }
 
-/* uploaded image preview restricted */
 img#preview {
   max-width: 150px;
   max-height: 150px;
@@ -86,6 +85,15 @@ img { max-width: 100%; margin: 8px 0; height: auto; }
   font-size: 1.4rem;
 }
 
+.reply {
+  margin-right: 20px;
+  margin-top: 6px;
+  border-right: 2px solid #1976d2;
+  padding-right: 6px;
+  font-size: 1.3rem;
+  background: #f1f1f1;
+}
+
 label {
   font-weight: bold;
   margin-top: 6px;
@@ -94,9 +102,7 @@ label {
   font-size: 1.2rem;
 }
 
-#cancelImageBtn {
-  background: #d32f2f;
-}
+#cancelImageBtn { background: #d32f2f; }
 #cancelImageBtn:hover { background: #b71c1c; }
 
 @media (max-width: 480px) {
@@ -112,76 +118,77 @@ label {
 </head>
 <body>
 <div class="container">
-<!-- Replaced h2 with logo image -->
-<img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:200px; margin:10px auto; display:block;">
 
-<div id="view-grades">
-  <h3>בחר שכבת גיל</h3>
-  <button onclick="openGrade('ז')">ז</button>
-  <button onclick="openGrade('ח')">ח</button>
-  <button onclick="openGrade('ט')">ט</button>
-</div>
+  <div id="view-grades">
+    <!-- Logo only on first page -->
+    <img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:200px; margin:10px auto; display:block;">
 
-<div id="view-subjects" class="hidden">
-  <h3 id="subject-title"></h3>
-  <div id="subject-list"></div>
-  <h3>📂 קטגוריות נוספות</h3>
-  <div id="category-list"></div>
-  <button onclick="backToGrades()">⬅ חזרה</button>
-</div>
-
-<div id="view-form" class="hidden">
-  <h3 id="form-title"></h3>
-  <input type="text" id="comment" placeholder="שם התלמיד"><br>
-  <textarea id="description" placeholder="תיאור"></textarea><br>
-  <input type="file" id="imageInput"><br>
-  <button id="cancelImageBtn" class="hidden" onclick="cancelImage()">❌ בטל תמונה</button><br>
-  <img id="preview" class="hidden"><br>
-  <button onclick="saveSubject()">💾 שמור</button>
-  <button onclick="backToSubjects()">⬅ חזרה</button>
-  <h3>📌 הערות שמורות</h3>
-  <div id="notes-list"></div>
-</div>
-
-<div id="view-sport-events" class="hidden">
-  <h3>ספורט - תזמון אירועים</h3>
-  <select id="sport-event-select">
-    <option value="כדורגל">כדורגל</option>
-    <option value="כדורסל">כדורסל</option>
-    <option value="ריצה">ריצה</option>
-  </select><br>
-  <label for="sport-date">תאריך:</label>
-  <input type="date" id="sport-date"><br>
-  <label for="sport-time">שעה:</label>
-  <input type="time" id="sport-time"><br>
-  <button onclick="saveSportEvent()">💾 שמור אירוע</button>
-  <button onclick="backToSubjects()">⬅ חזרה</button>
-  <h3>📌 אירועים שמורים</h3>
-  <div id="sport-events-list"></div>
-</div>
-
-<div id="view-social-meeting" class="hidden">
-  <h3>מפגש חברתי</h3>
-  <div id="social-locations">
-    <button onclick="selectSocialLocation('חדר אוכל')">חדר אוכל</button>
-    <button onclick="selectSocialLocation('חצר')">חצר</button>
-    <button onclick="selectSocialLocation('ספריה')">ספריה</button>
-    <button onclick="selectSocialLocation('אולם ספורט')">אולם ספורט</button>
-    <button onclick="selectSocialLocation('כיתת מחשבים')">כיתת מחשבים</button>
-    <button onclick="selectSocialLocation('גן משחקים')">גן משחקים</button>
+    <h3>בחר שכבת גיל</h3>
+    <button onclick="openGrade('ז')">ז</button>
+    <button onclick="openGrade('ח')">ח</button>
+    <button onclick="openGrade('ט')">ט</button>
   </div>
-  <div id="social-datetime" class="hidden">
-    <h4 id="selected-location"></h4>
-    <label for="social-date">תאריך:</label>
-    <input type="date" id="social-date"><br>
-    <label for="social-time">שעה:</label>
-    <input type="time" id="social-time"><br>
-    <button onclick="saveSocialMeeting()">💾 שמור מפגש</button>
+
+  <div id="view-subjects" class="hidden">
+    <h3 id="subject-title"></h3>
+    <div id="subject-list"></div>
+    <h3>📂 קטגוריות נוספות</h3>
+    <div id="category-list"></div>
+    <button onclick="backToGrades()">⬅ חזרה</button>
   </div>
-  <button onclick="backToSubjects()">⬅ חזרה</button>
-  <h3>📌 מפגשים שמורים</h3>
-  <div id="social-meetings-list"></div>
-</div>
+
+  <div id="view-form" class="hidden">
+    <h3 id="form-title"></h3>
+    <input type="text" id="comment" placeholder="שם התלמיד"><br>
+    <textarea id="description" placeholder="תיאור"></textarea><br>
+    <input type="file" id="imageInput"><br>
+    <button id="cancelImageBtn" class="hidden" onclick="cancelImage()">❌ בטל תמונה</button><br>
+    <img id="preview" class="hidden"><br>
+    <button onclick="saveSubject()">💾 שמור</button>
+    <button onclick="backToSubjects()">⬅ חזרה</button>
+    <h3>📌 הערות שמורות</h3>
+    <div id="notes-list"></div>
+  </div>
+
+  <div id="view-sport-events" class="hidden">
+    <h3>ספורט - תזמון אירועים</h3>
+    <select id="sport-event-select">
+      <option value="כדורגל">כדורגל</option>
+      <option value="כדורסל">כדורסל</option>
+      <option value="ריצה">ריצה</option>
+    </select><br>
+    <label for="sport-date">תאריך:</label>
+    <input type="date" id="sport-date"><br>
+    <label for="sport-time">שעה:</label>
+    <input type="time" id="sport-time"><br>
+    <button onclick="saveSportEvent()">💾 שמור אירוע</button>
+    <button onclick="backToSubjects()">⬅ חזרה</button>
+    <h3>📌 אירועים שמורים</h3>
+    <div id="sport-events-list"></div>
+  </div>
+
+  <div id="view-social-meeting" class="hidden">
+    <h3>מפגש חברתי</h3>
+    <div id="social-locations">
+      <button onclick="selectSocialLocation('חדר אוכל')">חדר אוכל</button>
+      <button onclick="selectSocialLocation('חצר')">חצר</button>
+      <button onclick="selectSocialLocation('ספריה')">ספריה</button>
+      <button onclick="selectSocialLocation('אולם ספורט')">אולם ספורט</button>
+      <button onclick="selectSocialLocation('כיתת מחשבים')">כיתת מחשבים</button>
+      <button onclick="selectSocialLocation('גן משחקים')">גן משחקים</button>
+    </div>
+    <div id="social-datetime" class="hidden">
+      <h4 id="selected-location"></h4>
+      <label for="social-date">תאריך:</label>
+      <input type="date" id="social-date"><br>
+      <label for="social-time">שעה:</label>
+      <input type="time" id="social-time"><br>
+      <button onclick="saveSocialMeeting()">💾 שמור מפגש</button>
+    </div>
+    <button onclick="backToSubjects()">⬅ חזרה</button>
+    <h3>📌 מפגשים שמורים</h3>
+    <div id="social-meetings-list"></div>
+  </div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -212,7 +219,7 @@ let selectedFile = null;
 let unsubscribe = null;
 let selectedSocialLocation = null;
 
-// Functions
+// Open grade
 function openGrade(grade) {
   currentGrade = grade;
   document.getElementById("view-grades").classList.add("hidden");
@@ -240,6 +247,7 @@ function openGrade(grade) {
   });
 }
 
+// Back navigation
 function backToGrades() {
   document.getElementById("view-subjects").classList.add("hidden");
   document.getElementById("view-form").classList.add("hidden");
@@ -283,6 +291,7 @@ function cancelImage(){
   document.getElementById("cancelImageBtn").classList.add("hidden");
 }
 
+// Open form
 function openForm(subject) {
   currentSubject = subject;
   document.getElementById("view-subjects").classList.add("hidden");
@@ -294,7 +303,8 @@ function openForm(subject) {
   loadNotes();
 }
 
-async function saveSubject() {
+// Save comment
+async function saveSubject(parentCommentId = null) {
   const comment = document.getElementById("comment").value.trim();
   const description = document.getElementById("description").value.trim();
   if(!comment || !description){ alert("אנא מלא את כל השדות"); return; }
@@ -311,28 +321,42 @@ async function saveSubject() {
     const subjectRef = db.collection("grades").doc(currentGrade)
                          .collection("subjects").doc(currentSubject);
     await subjectRef.set({ createdAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-    await subjectRef.collection("comments").add({
-      comment,
-      description,
-      imageUrl: imageUrl || "",
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    });
+
+    if(parentCommentId){
+      await subjectRef.collection("comments").doc(parentCommentId)
+        .collection("replies").add({
+          comment,
+          description,
+          imageUrl: imageUrl || "",
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } else {
+      await subjectRef.collection("comments").add({
+        comment,
+        description,
+        imageUrl: imageUrl || "",
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
 
     alert("נשמר בהצלחה!");
-    backToGrades();
+    document.getElementById("comment").value = "";
+    document.getElementById("description").value = "";
+    cancelImage();
   } catch(err){
     console.error("Upload error:", err);
     alert("שגיאה בשמירה: "+err.message);
   }
 }
 
+// Load notes with real-time updates
 function loadNotes() {
   const list = document.getElementById("notes-list");
-  list.innerHTML = "";
   const ref = db.collection("grades").doc(currentGrade)
     .collection("subjects").doc(currentSubject)
     .collection("comments").orderBy("timestamp","desc");
 
+  if(unsubscribe) unsubscribe();
   unsubscribe = ref.onSnapshot(snapshot=>{
     list.innerHTML="";
     snapshot.forEach(doc=>{
@@ -341,9 +365,73 @@ function loadNotes() {
       div.className="note";
       div.innerHTML=`<h4>${note.comment}</h4><p>${note.description}</p>`+
                     (note.imageUrl ? `<img src="${note.imageUrl}">` : "");
+
+      // Reply button
+      const replyBtn = document.createElement("button");
+      replyBtn.innerText = "💬 השב";
+      replyBtn.onclick = ()=> {
+        const replyComment = prompt("הזן את השם שלך:");
+        const replyDesc = prompt("כתוב את ההודעה שלך:");
+        if(replyComment && replyDesc){
+          saveSubjectReply(doc.id, replyComment, replyDesc);
+        }
+      };
+      div.appendChild(replyBtn);
+
+      // Delete button
+      const deleteBtn = document.createElement("button");
+      deleteBtn.innerText = "🗑️ מחק";
+      deleteBtn.style.background = "#d32f2f";
+      deleteBtn.style.marginLeft = "4px";
+      deleteBtn.onclick = async () => {
+        if(confirm("למחוק הערה זו?")) {
+          await doc.ref.delete();
+        }
+      };
+      div.appendChild(deleteBtn);
+
+      // Load replies in real-time
+      doc.ref.collection("replies").orderBy("timestamp","asc").onSnapshot(replySnap=>{
+        const oldReplies = div.querySelectorAll(".reply");
+        oldReplies.forEach(r => r.remove());
+        replySnap.forEach(replyDoc=>{
+          const r = replyDoc.data();
+          const rDiv = document.createElement("div");
+          rDiv.className="reply";
+          rDiv.innerHTML=`<strong>${r.comment}</strong><p>${r.description}</p>`+
+                         (r.imageUrl ? `<img src="${r.imageUrl}">` : "");
+
+          // Delete reply
+          const delReplyBtn = document.createElement("button");
+          delReplyBtn.innerText = "🗑️ מחק";
+          delReplyBtn.style.background = "#d32f2f";
+          delReplyBtn.style.marginLeft = "4px";
+          delReplyBtn.onclick = async () => {
+            if(confirm("למחוק תגובה זו?")) {
+              await replyDoc.ref.delete();
+            }
+          };
+          rDiv.appendChild(delReplyBtn);
+
+          div.appendChild(rDiv);
+        });
+      });
+
       list.appendChild(div);
     });
   });
+}
+
+// Save reply
+async function saveSubjectReply(parentCommentId, comment, description){
+  const subjectRef = db.collection("grades").doc(currentGrade)
+                       .collection("subjects").doc(currentSubject);
+  await subjectRef.collection("comments").doc(parentCommentId)
+    .collection("replies").add({
+      comment,
+      description,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
 }
 
 // SPORT EVENTS
@@ -376,37 +464,37 @@ function loadSportEvents(){
       snapshot.forEach(doc=>{
         const e = doc.data();
         const div = document.createElement("div");
-        div.className = "event";
+        div.className="event";
         div.innerText = `${e.name} - ${e.date} ${e.time}`;
         list.appendChild(div);
       });
     });
 }
 
-// SOCIAL MEETINGS
+// SOCIAL MEETING
 function openSocialMeeting(){
   document.getElementById("view-subjects").classList.add("hidden");
   document.getElementById("view-social-meeting").classList.remove("hidden");
-  loadSocialMeetings();
+  document.getElementById("social-datetime").classList.add("hidden");
 }
 
-function selectSocialLocation(loc){
-  selectedSocialLocation = loc;
-  document.getElementById("selected-location").innerText = loc;
+function selectSocialLocation(location){
+  selectedSocialLocation = location;
+  document.getElementById("selected-location").innerText = location;
   document.getElementById("social-datetime").classList.remove("hidden");
 }
 
 function saveSocialMeeting(){
   const date = document.getElementById("social-date").value;
   const time = document.getElementById("social-time").value;
-  if(!selectedSocialLocation || !date || !time){ alert("אנא מלא מיקום, תאריך ושעה"); return; }
+  if(!selectedSocialLocation || !date || !time){ alert("אנא מלא את כל השדות"); return; }
   db.collection("grades").doc(currentGrade)
     .collection("social_meetings").add({
       location: selectedSocialLocation,
       date,
       time,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(()=>{ alert("מפגש נשמר!"); loadSocialMeetings(); });
+    }).then(()=> loadSocialMeetings());
 }
 
 function loadSocialMeetings(){
@@ -416,10 +504,10 @@ function loadSocialMeetings(){
     .collection("social_meetings").orderBy("timestamp","desc")
     .get().then(snapshot=>{
       snapshot.forEach(doc=>{
-        const m = doc.data();
+        const e = doc.data();
         const div = document.createElement("div");
-        div.className = "social";
-        div.innerText = `${m.location} - ${m.date} ${m.time}`;
+        div.className="social";
+        div.innerText = `${e.location} - ${e.date} ${e.time}`;
         list.appendChild(div);
       });
     });
