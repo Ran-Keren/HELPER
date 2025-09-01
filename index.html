@@ -11,7 +11,7 @@ button:hover { background: #1565c0; }
 .hidden { display: none; }
 input, textarea, select { width: 90%; padding: 8px; margin: 5px 0; }
 img { max-width: 150px; margin: 10px 0; }
-.note { border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 5px; text-align: right; }
+.note, .event, .social { border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 5px; text-align: right; }
 </style>
 </head>
 <body>
@@ -56,13 +56,29 @@ img { max-width: 150px; margin: 10px 0; }
   <input type="time" id="sport-time"><br>
   <button onclick="saveSportEvent()">💾 שמור אירוע</button>
   <button onclick="backToSubjects()">⬅ חזרה</button>
+  <h3>📌 אירועים שמורים</h3>
+  <div id="sport-events-list"></div>
 </div>
 
 <div id="view-social-meeting" class="hidden">
   <h3>מפגש חברתי</h3>
-  <button onclick="addSocialMeeting('מיקום')">בחר מיקום</button>
-  <button onclick="addSocialMeeting('זמן')">בחר זמן</button>
+  <div id="social-locations">
+    <button onclick="selectSocialLocation('חדר אוכל')">חדר אוכל</button>
+    <button onclick="selectSocialLocation('חצר')">חצר</button>
+    <button onclick="selectSocialLocation('ספריה')">ספריה</button>
+    <button onclick="selectSocialLocation('אולם ספורט')">אולם ספורט</button>
+    <button onclick="selectSocialLocation('כיתת מחשבים')">כיתת מחשבים</button>
+    <button onclick="selectSocialLocation('גן משחקים')">גן משחקים</button>
+  </div>
+  <div id="social-datetime" class="hidden">
+    <h4 id="selected-location"></h4>
+    <input type="date" id="social-date"><br>
+    <input type="time" id="social-time"><br>
+    <button onclick="saveSocialMeeting()">💾 שמור מפגש</button>
+  </div>
   <button onclick="backToSubjects()">⬅ חזרה</button>
+  <h3>📌 מפגשים שמורים</h3>
+  <div id="social-meetings-list"></div>
 </div>
 
 </div>
@@ -92,6 +108,7 @@ let currentGrade = null;
 let currentSubject = null;
 let selectedFile = null;
 let unsubscribe = null;
+let selectedSocialLocation = null;
 
 function openGrade(grade) {
   currentGrade = grade;
@@ -132,6 +149,7 @@ function backToSubjects() {
   document.getElementById("view-form").classList.add("hidden");
   document.getElementById("view-sport-events").classList.add("hidden");
   document.getElementById("view-social-meeting").classList.add("hidden");
+  document.getElementById("social-datetime").classList.add("hidden");
   document.getElementById("view-subjects").classList.remove("hidden");
 }
 
@@ -213,10 +231,11 @@ function loadNotes() {
   });
 }
 
-// Sport events with date & time pickers
+// SPORT EVENTS
 function openSportEvents(){
   document.getElementById("view-subjects").classList.add("hidden");
   document.getElementById("view-sport-events").classList.remove("hidden");
+  loadSportEvents();
 }
 
 function saveSportEvent(){
@@ -230,26 +249,68 @@ function saveSportEvent(){
       date,
       time,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  alert("אירוע נשמר!");
+    }).then(()=>loadSportEvents());
 }
 
-// Social meeting buttons
+function loadSportEvents(){
+  const list = document.getElementById("sport-events-list");
+  list.innerHTML = "";
+  db.collection("grades").doc(currentGrade)
+    .collection("sport_events").orderBy("timestamp","desc")
+    .get().then(snapshot=>{
+      snapshot.forEach(doc=>{
+        const e = doc.data();
+        const div = document.createElement("div");
+        div.className = "event";
+        div.innerText = `${e.name} - ${e.date} ${e.time}`;
+        list.appendChild(div);
+      });
+    });
+}
+
+// SOCIAL MEETINGS
 function openSocialMeeting(){
   document.getElementById("view-subjects").classList.add("hidden");
   document.getElementById("view-social-meeting").classList.remove("hidden");
+  loadSocialMeetings();
 }
 
-function addSocialMeeting(type){
-  const value = prompt(`הזן ${type} למפגש החברתי`);
-  if(value){
-    db.collection("grades").doc(currentGrade)
-      .collection("social_meetings").add({
-        [type]: value,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+function selectSocialLocation(loc){
+  selectedSocialLocation = loc;
+  document.getElementById("selected-location").innerText = loc;
+  document.getElementById("social-datetime").classList.remove("hidden");
+}
+
+function saveSocialMeeting(){
+  const date = document.getElementById("social-date").value;
+  const time = document.getElementById("social-time").value;
+  if(!selectedSocialLocation || !date || !time){ alert("אנא מלא מיקום, תאריך ושעה"); return; }
+  db.collection("grades").doc(currentGrade)
+    .collection("social_meetings").add({
+      location: selectedSocialLocation,
+      date,
+      time,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(()=>{
+      alert("מפגש נשמר!");
+      loadSocialMeetings();
+    });
+}
+
+function loadSocialMeetings(){
+  const list = document.getElementById("social-meetings-list");
+  list.innerHTML = "";
+  db.collection("grades").doc(currentGrade)
+    .collection("social_meetings").orderBy("timestamp","desc")
+    .get().then(snapshot=>{
+      snapshot.forEach(doc=>{
+        const m = doc.data();
+        const div = document.createElement("div");
+        div.className = "social";
+        div.innerText = `${m.location} - ${m.date} ${m.time}`;
+        list.appendChild(div);
       });
-    alert("נשמר בהצלחה!");
-  }
+    });
 }
 </script>
 </body>
