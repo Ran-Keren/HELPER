@@ -5,7 +5,18 @@
 <title>Helper School App</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
 <style>
-/* -------------------- CSS Fix for Flicker (שומר על הסתרה עד אימות) -------------------- */
+/* --- משתני צבעים --- */
+:root {
+    --primary-color: #00796b; /* Teal / כחול-ירוק רענן */
+    --primary-light: #4db6ac;
+    --accent-color: #ff9800; /* כתום */
+    --background-color: #f0f4f8; /* רקע בהיר */
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --danger-color: #d32f2f;
+    --border-radius: 12px;
+}
+
+/* -------------------- CSS Fix for Flicker -------------------- */
 body:not(.auth-initialized) #auth-wrap,
 body:not(.auth-initialized) .container {
     visibility: hidden;
@@ -15,14 +26,14 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: Arial, sans-serif;
+  font-family: 'Heebo', Arial, sans-serif; /* פונט מעודכן */
   direction: rtl;
   text-align: center;
-  background: #f7f7f7;
+  background: var(--background-color);
   overflow: hidden;
 }
 
-/* -------------------- LOGIN / SIGNUP (WHITE MINIMAL) -------------------- */
+/* -------------------- LOGIN / SIGNUP -------------------- */
 #auth-wrap {
   width: 100%;
   min-height: 100vh;
@@ -34,167 +45,256 @@ html, body {
 }
 .auth-card {
   width: 100%;
-  max-width: 380px;
+  max-width: 400px; /* קצת יותר רחב */
   background: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-  padding: 22px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  padding: 30px 25px; /* מרווח פנימי גדול יותר */
   box-sizing: border-box;
   text-align: center;
 }
 .auth-card h2 {
-  margin: 0 0 12px 0;
-  font-size: 1.6rem;
-  color: #222;
+  margin: 0 0 20px 0;
+  font-size: 1.8rem;
+  color: var(--primary-color);
 }
 .auth-card label {
   display: block;
   text-align: right;
-  font-weight: 600;
-  margin-top: 10px;
-  font-size: 0.95rem;
+  font-weight: 500;
+  margin-top: 15px;
+  font-size: 1rem;
+  color: #555;
 }
 .auth-card input {
   width: 100%;
-  padding: 10px;
-  margin-top: 6px;
+  padding: 12px;
+  margin-top: 8px;
   box-sizing: border-box;
-  border: 1px solid #e6e6e6;
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
   font-size: 1rem;
+  transition: border-color 0.3s;
+}
+.auth-card input:focus {
+    border-color: var(--primary-color);
+    outline: none;
 }
 .auth-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 14px;
+  gap: 10px;
+  margin-top: 20px;
   justify-content: center;
   flex-wrap: wrap;
 }
 .auth-actions button {
-  padding: 10px 14px;
-  font-size: 1rem;
+  padding: 12px 20px;
+  font-size: 1.05rem;
   border-radius: 8px;
   border: none;
   cursor: pointer;
+  transition: all 0.3s;
 }
 .btn-primary {
-  background: #1976d2;
+  background: var(--primary-color);
   color: white;
+  box-shadow: 0 4px 8px rgba(0, 121, 107, 0.3);
+}
+.btn-primary:hover {
+    background: #00695c;
+    box-shadow: 0 6px 12px rgba(0, 121, 107, 0.4);
 }
 .btn-ghost {
   background: transparent;
-  color: #1976d2;
-  border: 1px solid #e6e6e6;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+.btn-ghost:hover {
+    background: #e0f2f1;
 }
 .link-small {
-  margin-top: 10px;
+  margin-top: 15px;
   display: block;
-  color: #555;
-  font-size: 0.9rem;
+  color: #777;
+  font-size: 0.95rem;
   cursor: pointer;
 }
-/* ----------------------------------------------------------------------- */
 
-body {
-  display: flex;
-  justify-content: center;
-  align-items: stretch;
-}
+/* -------------------- APP CONTAINER STYLES -------------------- */
 
 .container {
   flex: 1;
   max-width: 100%;
   height: 100vh;
-  margin: 0;
-  padding: 10px;
+  margin: 0 auto;
+  padding: 15px;
   box-sizing: border-box;
   overflow-y: auto;
-  background: white;
+  background: var(--background-color); /* רקע בהיר */
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
 }
 .container > :last-child {
-  margin-bottom: 300px; /* adjust as needed */
+  margin-bottom: 50px; /* נמנע מגלילה מיותרת */
 }
 
-h2 { font-size: 2rem; margin-bottom: 0px; }
-h3 { font-size: 1.6rem; margin-bottom: 0px; }
-h4 { font-size: 1.4rem; margin-bottom: 0px; }
+h2 { font-size: 2.2rem; margin-bottom: 0px; color: #333; }
+h3 { 
+    font-size: 1.7rem; 
+    margin: 20px 0 10px 0; 
+    color: var(--primary-color); 
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 5px;
+}
+h4 { font-size: 1.4rem; margin-bottom: 0px; color: #555; }
 
+/* שיפור כפתורים כללי */
 button {
-  padding: 8px 16px;
-  margin: 4px 2px;
+  padding: 10px 20px;
+  margin: 6px;
   border: none;
-  background: #1976d2;
+  background: var(--primary-light); /* כפתורים פחות דומיננטיים, למסכי בחירה */
   color: white;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 1.4rem;
-  transition: background 0.3s;
+  font-size: 1.1rem;
+  transition: background 0.3s, transform 0.1s;
+}
+button:hover { 
+    background: var(--primary-color); 
+    transform: translateY(-1px);
 }
 
-button:hover { background: #1565c0; }
+/* כפתור שמור / ראשי באפליקציה */
+#view-form button:not([onclick*="back"]),
+#view-sport-events button:not([onclick*="back"]),
+#view-social-meeting button:not([onclick*="back"]) {
+    background: var(--primary-color);
+    font-size: 1.2rem;
+    padding: 12px 24px;
+}
+
+/* כפתור יציאה */
+.logout-btn { 
+    background: var(--danger-color) !important; 
+    font-size: 1rem !important; 
+    padding: 6px 10px !important; 
+    margin-right: auto; /* דוחף שמאלה (פינת המסך ברט"ל) */
+    box-shadow: 0 2px 4px rgba(211, 47, 47, 0.3);
+}
 
 .hidden { display: none; }
 
+/* שיפור שדות קלט */
 input, textarea, select {
-  width: 95%;
-  padding: 8px;
-  margin: 4px 0;
-  font-size: 1.4rem;
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  font-size: 1.1rem;
   box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #ffffff;
+}
+input:focus, textarea:focus, select:focus {
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 2px rgba(0, 121, 107, 0.1);
+    outline: none;
 }
 
 img#preview {
-  max-width: 150px;
-  max-height: 150px;
-  margin: 8px 0;
+  max-width: 200px;
+  max-height: 200px;
+  margin: 10px 0;
   height: auto;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  border: 2px dashed #ccc;
+  border-radius: var(--border-radius);
+  object-fit: cover;
 }
 
-img { max-width: 100%; margin: 8px 0; height: auto; }
+img { max-width: 100%; margin: 8px 0; height: auto; border-radius: 8px; }
 
+/* שיפור כרטיסי הערות/אירועים */
 .note, .event, .social {
-  border: 1px solid #ddd;
-  padding: 8px;
-  margin: 6px 0;
-  border-radius: 6px;
+  background: #ffffff;
+  border-left: 5px solid var(--primary-light);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  padding: 12px;
+  margin: 12px 0;
+  border-radius: 8px;
   text-align: right;
   word-wrap: break-word;
-  font-size: 1.4rem;
+  font-size: 1.1rem;
+}
+
+.note h4 {
+    color: var(--primary-color);
+    margin-top: 0;
+    margin-bottom: 5px;
+    font-size: 1.4rem;
 }
 
 .reply {
   margin-right: 20px;
-  margin-top: 6px;
-  border-right: 2px solid #1976d2;
-  padding-right: 6px;
-  font-size: 1.3rem;
-  background: #f1f1f1;
+  margin-top: 10px;
+  border-right: 3px solid var(--accent-color); /* צבע שונה לתגובה */
+  padding-right: 10px;
+  font-size: 1rem;
+  background: #fffde7; /* רקע עדין לתגובות */
+  border-radius: 0 8px 8px 0;
+}
+.reply p {
+    margin-top: 5px;
+    margin-bottom: 0;
+    font-size: 1.1rem;
 }
 
 label {
-  font-weight: bold;
-  margin-top: 6px;
+  font-weight: 500;
+  margin-top: 10px;
   display: block;
   text-align: right;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
 }
 
-#cancelImageBtn { background: #d32f2f; }
+#cancelImageBtn { 
+    background: var(--danger-color); 
+    padding: 8px 12px;
+    font-size: 1rem;
+}
 #cancelImageBtn:hover { background: #b71c1c; }
 
+/* קבוצות כפתורים (בחר שכבה/מקצוע) */
+#view-grades button, #subject-list button, #category-list button, #social-locations button {
+    background: var(--primary-light);
+    margin: 8px 5px;
+    min-width: 120px;
+    padding: 12px 15px;
+    font-size: 1.2rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+#view-grades button:hover, #subject-list button:hover, #category-list button:hover, #social-locations button:hover {
+    background: var(--primary-color);
+}
+#subject-list, #category-list, #social-locations {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 5px;
+}
+
 @media (max-width: 480px) {
-  .container { padding: 5px; }
-  h2 { font-size: 1.8rem; }
-  h3 { font-size: 1.4rem; }
-  h4 { font-size: 1.2rem; }
-  button { width: 90%; padding: 6px; font-size: 1.2rem; margin: 3px 0; }
-  input, textarea, select { padding: 6px; font-size: 1.2rem; }
-  .note, .event, .social { font-size: 1.2rem; padding: 6px; }
+  .container { padding: 10px; }
+  h2 { font-size: 2rem; }
+  h3 { font-size: 1.5rem; }
+  h4 { font-size: 1.3rem; }
+  button { width: 95%; padding: 10px; font-size: 1.1rem; margin: 5px 0; }
+  input, textarea, select { padding: 10px; font-size: 1.1rem; }
+  .note, .event, .social { font-size: 1.1rem; padding: 10px; }
+    #view-grades button, #subject-list button, #category-list button, #social-locations button {
+        min-width: 45%;
+    }
 }
 </style>
 </head>
@@ -202,7 +302,7 @@ label {
 
 <div id="auth-wrap">
   <div id="auth-card" class="auth-card" role="region" aria-label="login">
-    <h2>התחברות למערכת</h2>
+    <h2>התחברות למערכת 🔑</h2>
 
     <label for="firstName">שם פרטי</label>
     <input id="firstName" type="text" autocomplete="given-name" placeholder="שם פרטי">
@@ -222,7 +322,7 @@ label {
   </div>
 
     <div id="signup-card" class="auth-card hidden" role="region" aria-label="signup">
-    <h2>הרשמה חדשה</h2>
+    <h2>הרשמה חדשה ✍️</h2>
 
     <label for="signup-first">שם פרטי</label>
     <input id="signup-first" type="text" placeholder="שם פרטי">
@@ -243,42 +343,60 @@ label {
 </div>
 <div class="container hidden">
 
-    <div style="display: flex; justify-content: flex-start; margin-bottom: 10px;">
-        <button style="background: #e53935; font-size: 1rem; padding: 6px 10px;" onclick="logout()">יציאה 🚪</button>
-    </div>
+    <div style="display: flex; justify-content: flex-start; margin-bottom: 10px; width: 100%;">
+        <button class="logout-btn" onclick="logout()">יציאה 🚪</button>
+    </div>
 
   <div id="view-grades">
-        <img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:200px; margin:10px auto; display:block;">
+        <img src="https://i.imgur.com/rEEphAR.jpeg" alt="לוגו בית ספר" style="max-width:200px; margin:10px auto 30px auto; display:block;">
 
-    <h3>בחר שכבת גיל</h3>
-    <button onclick="openGrade('ז')">ז</button>
-    <button onclick="openGrade('ח')">ח</button>
-    <button onclick="openGrade('ט')">ט</button>
+    <h3>בחר שכבת גיל 👇</h3>
+    <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+        <button onclick="openGrade('ז')">שכבת ז'</button>
+        <button onclick="openGrade('ח')">שכבת ח'</button>
+        <button onclick="openGrade('ט')">שכבת ט'</button>
+    </div>
   </div>
 
   <div id="view-subjects" class="hidden">
     <h3 id="subject-title"></h3>
+    
+    <h4>📚 מקצועות לימוד</h4>
     <div id="subject-list"></div>
-    <h3>📂 קטגוריות נוספות</h3>
+
+    <h4>📂 קטגוריות נוספות</h4>
     <div id="category-list"></div>
-    <button onclick="backToGrades()">⬅ חזרה</button>
+    <button onclick="backToGrades()" style="background: #607d8b; margin-top: 20px;">⬅ חזרה לבחירת שכבה</button>
   </div>
 
   <div id="view-form" class="hidden">
     <h3 id="form-title"></h3>
-    <input type="text" id="comment" placeholder="שם התלמיד"><br>
-    <textarea id="description" placeholder="תיאור"></textarea><br>
+    <label for="comment">שם התלמיד/מגיש ההצעה:</label>
+    <input type="text" id="comment" placeholder="שם התלמיד / שם ההורה / מציע"><br>
+    
+    <label for="description">תיאור מפורט:</label>
+    <textarea id="description" placeholder="תיאור ההערה/הבעיה/הצעה"></textarea><br>
+    
+    <label for="imageInput">צרף תמונה (אופציונלי):</label>
     <input type="file" id="imageInput"><br>
-    <button id="cancelImageBtn" class="hidden" onclick="cancelImage()">❌ בטל תמונה</button><br>
+    
+    <div style="display: flex; justify-content: flex-end; width: 100%;">
+        <button id="cancelImageBtn" class="hidden" onclick="cancelImage()" style="margin-left: auto;">❌ בטל תמונה</button>
+    </div>
     <img id="preview" class="hidden"><br>
-    <button onclick="saveSubject()">💾 שמור</button>
-    <button onclick="backToSubjects()">⬅ חזרה</button>
+    
+    <div style="margin-top: 20px;">
+        <button onclick="saveSubject()">💾 שמור הערה</button>
+        <button onclick="backToSubjects()" style="background: #607d8b;">⬅ חזרה</button>
+    </div>
+
     <h3>📌 הערות שמורות</h3>
     <div id="notes-list"></div>
   </div>
 
   <div id="view-sport-events" class="hidden">
-    <h3>ספורט - תזמון אירועים</h3>
+    <h3>ספורט - תזמון אירועים ⚽🏀</h3>
+    <label for="sport-event-select">בחר אירוע:</label>
     <select id="sport-event-select">
       <option value="כדורגל">כדורגל</option>
       <option value="כדורסל">כדורסל</option>
@@ -288,23 +406,28 @@ label {
     <input type="date" id="sport-date"><br>
     <label for="sport-time">שעה:</label>
     <input type="time" id="sport-time"><br>
-    <button onclick="saveSportEvent()">💾 שמור אירוע</button>
-    <button onclick="backToSubjects()">⬅ חזרה</button>
+    
+    <div style="margin-top: 20px;">
+        <button onclick="saveSportEvent()">💾 שמור אירוע</button>
+        <button onclick="backToSubjects()" style="background: #607d8b;">⬅ חזרה</button>
+    </div>
+
     <h3>📌 אירועים שמורים</h3>
     <div id="sport-events-list"></div>
   </div>
 
   <div id="view-social-meeting" class="hidden">
-    <h3>מפגש חברתי</h3>
+    <h3>מפגש חברתי 🎉</h3>
+    <h4>בחר מיקום למפגש:</h4>
     <div id="social-locations">
-      <button onclick="selectSocialLocation('חדר אוכל')">חדר אוכל</button>
-      <button onclick="selectSocialLocation('חצר')">חצר</button>
-      <button onclick="selectSocialLocation('ספריה')">ספריה</button>
-      <button onclick="selectSocialLocation('אולם ספורט')">אולם ספורט</button>
-      <button onclick="selectSocialLocation('כיתת מחשבים')">כיתת מחשבים</button>
-      <button onclick="selectSocialLocation('גן משחקים')">גן משחקים</button>
+      <button onclick="selectSocialLocation('חדר אוכל')">חדר אוכל 🍕</button>
+      <button onclick="selectSocialLocation('חצר')">חצר 🌳</button>
+      <button onclick="selectSocialLocation('ספריה')">ספריה 📖</button>
+      <button onclick="selectSocialLocation('אולם ספורט')">אולם ספורט 🏐</button>
+      <button onclick="selectSocialLocation('כיתת מחשבים')">כיתת מחשבים 💻</button>
+      <button onclick="selectSocialLocation('גן משחקים')">גן משחקים 🎠</button>
     </div>
-    <div id="social-datetime" class="hidden">
+    <div id="social-datetime" class="auth-card hidden" style="background: #e0f2f1; padding: 20px; margin-top: 20px; box-shadow: none;">
       <h4 id="selected-location"></h4>
       <label for="social-date">תאריך:</label>
       <input type="date" id="social-date"><br>
@@ -312,7 +435,7 @@ label {
       <input type="time" id="social-time"><br>
       <button onclick="saveSocialMeeting()">💾 שמור מפגש</button>
     </div>
-    <button onclick="backToSubjects()">⬅ חזרה</button>
+    <button onclick="backToSubjects()" style="background: #607d8b; margin-top: 20px;">⬅ חזרה</button>
     <h3>📌 מפגשים שמורים</h3>
     <div id="social-meetings-list"></div>
   </div>
@@ -497,6 +620,10 @@ function loadNotes() {
       // Reply button
       const replyBtn = document.createElement("button");
       replyBtn.innerText = "💬 השב";
+      replyBtn.style.fontSize = '1rem';
+      replyBtn.style.padding = '5px 10px';
+      replyBtn.style.background = '#00bcd4';
+      replyBtn.style.marginLeft = '4px';
       replyBtn.onclick = ()=> {
         const replyComment = prompt("הזן את השם שלך:");
         const replyDesc = prompt("כתוב את ההודעה שלך:");
@@ -509,6 +636,8 @@ function loadNotes() {
       // Delete button
       const deleteBtn = document.createElement("button");
       deleteBtn.innerText = "🗑️ מחק";
+      deleteBtn.style.fontSize = '1rem';
+      deleteBtn.style.padding = '5px 10px';
       deleteBtn.style.background = "#d32f2f";
       deleteBtn.style.marginLeft = "0px";
       deleteBtn.onclick = async () => {
@@ -532,6 +661,8 @@ function loadNotes() {
           // Delete reply
           const delReplyBtn = document.createElement("button");
           delReplyBtn.innerText = "🗑️ מחק";
+        delReplyBtn.style.fontSize = '0.9rem';
+      delReplyBtn.style.padding = '3px 8px';
           delReplyBtn.style.background = "#d32f2f";
           delReplyBtn.style.marginLeft = "4px";
           delReplyBtn.onclick = async () => {
@@ -598,6 +729,8 @@ function loadSportEvents(){
         // Delete button
         const delBtn = document.createElement("button");
         delBtn.innerText = "🗑️ מחק";
+      delBtn.style.fontSize = '1rem';
+      delBtn.style.padding = '5px 10px';
         delBtn.style.background = "#d32f2f";
         delBtn.style.marginLeft = "4px";
         delBtn.onclick = async () => {
@@ -655,6 +788,8 @@ function loadSocialMeetings(){
         // Delete button
         const delBtn = document.createElement("button");
         delBtn.innerText = "🗑️ מחק";
+      delBtn.style.fontSize = '1rem';
+      delBtn.style.padding = '5px 10px';
         delBtn.style.background = "#d32f2f";
         delBtn.style.marginLeft = "4px";
         delBtn.onclick = async () => {
@@ -678,7 +813,7 @@ const auth = firebase.auth();
 // utility: make email from first + last
 function makeEmail(first, last){
   // normalize spaces and remove dots
-  const f = (first || "").trim().replace(/\s+/g,"").replace(/\./g, ''); 
+  const f = (first || "").trim().replace(/\s+/g,"").replace(/\./g, ''); 
   const l = (last || "").trim().replace(/\s+/g,"").replace(/\./g, '');
   return `${f}.${l}@myschool.local`.toLowerCase();
 }
@@ -712,13 +847,13 @@ async function login(){
     await auth.signInWithEmailAndPassword(email, pass);
   } catch(err){
     console.error("Login Error:", err);
-    let errorMsg = "שגיאה בהתחברות. ודא ששם המשתמש והסיסמה נכונים.";
-    if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        errorMsg = "שם משתמש או סיסמה שגויים.";
-    } else if (err.code === 'auth/invalid-email') {
-        errorMsg = "פורמט שם משתמש (אימייל) שגוי. ודא ששם פרטי ומשפחה תקינים.";
-    }
-    document.getElementById('auth-msg').innerText = errorMsg;
+    let errorMsg = "שגיאה בהתחברות. ודא ששם המשתמש והסיסמה נכונים.";
+    if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        errorMsg = "שם משתמש או סיסמה שגויים.";
+    } else if (err.code === 'auth/invalid-email') {
+        errorMsg = "פורמט שם משתמש (אימייל) שגוי. ודא ששם פרטי ומשפחה תקינים.";
+    }
+    document.getElementById('auth-msg').innerText = errorMsg;
   }
 }
 
@@ -763,7 +898,7 @@ auth.onAuthStateChanged(user => {
 
   // 1. מאשר שהבדיקה בוצעה (מטפל ב-CSS של ההבהוב)
   document.body.classList.add('auth-initialized');
-  
+  
   if(user){
     // hide auth UI, show app
     authWrap.classList.add('hidden');
