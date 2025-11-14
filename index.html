@@ -5,6 +5,9 @@
 <title>Helper School App</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
 <style>
+/* -------------------- CSS Fix for Flicker (שומר על הסתרה עד אימות) -------------------- */
+body:not(.auth-initialized) #auth-wrap, body:not(.auth-initialized) .container { visibility: hidden; }
+/* ------------------------------------------------------------- */
 html, body {
   height: 100%;
   margin: 0;
@@ -15,13 +18,83 @@ html, body {
   background: #f7f7f7;
   overflow: hidden;
 }
-
+/* -------------------- LOGIN / SIGNUP (WHITE MINIMAL) -------------------- */
+#auth-wrap {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  padding: 22px;
+  box-sizing: border-box;
+  text-align: center;
+}
+.auth-card h2 {
+  margin: 0 0 12px 0;
+  font-size: 1.6rem;
+  color: #222;
+}
+.auth-card label {
+  display: block;
+  text-align: right;
+  font-weight: 600;
+  margin-top: 10px;
+  font-size: 0.95rem;
+}
+.auth-card input {
+  width: 100%;
+  padding: 10px;
+  margin-top: 6px;
+  box-sizing: border-box;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+.auth-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.auth-actions button {
+  padding: 10px 14px;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+.btn-primary {
+  background: #1976d2;
+  color: white;
+}
+.btn-ghost {
+  background: transparent;
+  color: #1976d2;
+  border: 1px solid #e6e6e6;
+}
+.link-small {
+  margin-top: 10px;
+  display: block;
+  color: #555;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+/* ----------------------------------------------------------------------- */
 body {
   display: flex;
   justify-content: center;
   align-items: stretch;
 }
-
 .container {
   flex: 1;
   max-width: 100%;
@@ -38,11 +111,9 @@ body {
 .container > :last-child {
   margin-bottom: 300px; /* adjust as needed */
 }
-
 h2 { font-size: 2rem; margin-bottom: 0px; }
 h3 { font-size: 1.6rem; margin-bottom: 0px; }
 h4 { font-size: 1.4rem; margin-bottom: 0px; }
-
 button {
   padding: 8px 16px;
   margin: 4px 2px;
@@ -54,11 +125,8 @@ button {
   font-size: 1.4rem;
   transition: background 0.3s;
 }
-
 button:hover { background: #1565c0; }
-
 .hidden { display: none; }
-
 input, textarea, select {
   width: 95%;
   padding: 8px;
@@ -66,7 +134,6 @@ input, textarea, select {
   font-size: 1.4rem;
   box-sizing: border-box;
 }
-
 img#preview {
   max-width: 150px;
   max-height: 150px;
@@ -75,9 +142,7 @@ img#preview {
   border: 1px solid #ccc;
   border-radius: 6px;
 }
-
 img { max-width: 100%; margin: 8px 0; height: auto; }
-
 .note, .event, .social {
   border: 1px solid #ddd;
   padding: 8px;
@@ -87,7 +152,6 @@ img { max-width: 100%; margin: 8px 0; height: auto; }
   word-wrap: break-word;
   font-size: 1.4rem;
 }
-
 .reply {
   margin-right: 20px;
   margin-top: 6px;
@@ -96,7 +160,6 @@ img { max-width: 100%; margin: 8px 0; height: auto; }
   font-size: 1.3rem;
   background: #f1f1f1;
 }
-
 label {
   font-weight: bold;
   margin-top: 6px;
@@ -104,10 +167,8 @@ label {
   text-align: right;
   font-size: 1.2rem;
 }
-
 #cancelImageBtn { background: #d32f2f; }
 #cancelImageBtn:hover { background: #b71c1c; }
-
 @media (max-width: 480px) {
   .container { padding: 5px; }
   h2 { font-size: 1.8rem; }
@@ -120,16 +181,47 @@ label {
 </style>
 </head>
 <body>
-<div class="container">
+<div id="auth-wrap">
+  <div id="auth-card" class="auth-card" role="region" aria-label="login">
+    <h2>התחברות למערכת</h2>
+    <label for="firstName">שם פרטי</label>
+    <input id="firstName" type="text" autocomplete="given-name" placeholder="שם פרטי">
+    <label for="lastName">שם משפחה</label>
+    <input id="lastName" type="text" autocomplete="family-name" placeholder="שם משפחה">
+    <label for="password">סיסמה</label>
+    <input id="password" type="password" autocomplete="current-password" placeholder="סיסמה">
+    <div class="auth-actions">
+      <button class="btn-primary" onclick="login()">התחבר</button>
+      <button class="btn-ghost" onclick="showSignup()">הרשמה</button>
+    </div>
+    <span class="link-small" id="auth-msg" aria-live="polite"></span>
+  </div>
+    <div id="signup-card" class="auth-card hidden" role="region" aria-label="signup">
+    <h2>הרשמה חדשה</h2>
+    <label for="signup-first">שם פרטי</label>
+    <input id="signup-first" type="text" placeholder="שם פרטי">
+    <label for="signup-last">שם משפחה</label>
+    <input id="signup-last" type="text" placeholder="שם משפחה">
+    <label for="signup-pass">סיסמה</label>
+    <input id="signup-pass" type="password" placeholder="סיסמה">
+    <div class="auth-actions">
+      <button class="btn-primary" onclick="signup()">צור משתמש</button>
+      <button class="btn-ghost" onclick="hideSignup()">חזור להתחברות</button>
+    </div>
+    <span class="link-small" id="signup-msg" aria-live="polite"></span>
+  </div>
+</div>
+<div class="container hidden">
+<div style="display: flex; justify-content: flex-start; margin-bottom: 10px;">
+<button style="background: #e53935; font-size: 1rem; padding: 6px 10px;" onclick="logout()">יציאה 🚪</button>
+</div>
   <div id="view-grades">
-    <img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:200px; margin:10px auto; display:block;">
-
+        <img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:200px; margin:10px auto; display:block;">
     <h3>בחר שכבת גיל</h3>
     <button onclick="openGrade('ז')">ז</button>
     <button onclick="openGrade('ח')">ח</button>
     <button onclick="openGrade('ט')">ט</button>
   </div>
-
   <div id="view-subjects" class="hidden">
     <h3 id="subject-title"></h3>
     <div id="subject-list"></div>
@@ -137,7 +229,6 @@ label {
     <div id="category-list"></div>
     <button onclick="backToGrades()">⬅ חזרה</button>
   </div>
-
   <div id="view-form" class="hidden">
     <h3 id="form-title"></h3>
     <input type="text" id="comment" placeholder="שם התלמיד"><br>
@@ -150,7 +241,6 @@ label {
     <h3>📌 הערות שמורות</h3>
     <div id="notes-list"></div>
   </div>
-
   <div id="view-sport-events" class="hidden">
     <h3>ספורט - תזמון אירועים</h3>
     <select id="sport-event-select">
@@ -167,7 +257,6 @@ label {
     <h3>📌 אירועים שמורים</h3>
     <div id="sport-events-list"></div>
   </div>
-
   <div id="view-social-meeting" class="hidden">
     <h3>מפגש חברתי</h3>
     <div id="social-locations">
@@ -191,11 +280,12 @@ label {
     <div id="social-meetings-list"></div>
   </div>
 </div>
-
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script>
+// ---------------- YOUR ORIGINAL FIREBASE + APP CODE (UNCHANGED) ----------------
 // Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyA8JW7C-tvAw1E-2rNthoI9yG-C4zjWjM4",
@@ -219,7 +309,7 @@ let selectedFile = null;
 let unsubscribe = null;
 let selectedSocialLocation = null;
 
-// Open grade
+// Open grade function
 function openGrade(grade) {
   currentGrade = grade;
   document.getElementById("view-grades").classList.add("hidden");
@@ -541,8 +631,109 @@ function loadSocialMeetings(){
       });
     });
 }
-// All authentication-related functions and onAuthStateChanged listener from the second file
-// are removed to restore the original file's pre-authentication state.
+
+// ---------------- END ORIGINAL APP CODE ----------------
+
+// ---------------- RE-INSERTED AUTH CODE ----------------
+const auth = firebase.auth();
+// utility: make email from first + last
+function makeEmail(first, last){
+  // normalize spaces and remove dots
+  const f = (first || "").trim().replace(/\s+/g,"").replace(/\./g, '');
+  const l = (last || "").trim().replace(/\s+/g,"").replace(/\./g, '');
+  return `${f}.${l}@myschool.local.toLowerCase();`
+}
+
+// show/hide signup
+function showSignup(){
+  document.getElementById('auth-card').classList.add('hidden');
+  document.getElementById('signup-card').classList.remove('hidden');
+  document.getElementById('auth-msg').innerText = "";
+}
+function hideSignup(){
+  document.getElementById('signup-card').classList.add('hidden');
+  document.getElementById('auth-card').classList.remove('hidden');
+  document.getElementById('signup-msg').innerText = "";
+}
+
+// login (כולל טיפול משופר בשגיאות)
+async function login(){
+  const first = document.getElementById('firstName').value.trim();
+  const last = document.getElementById('lastName').value.trim();
+  const pass = document.getElementById('password').value;
+  if(!first || !last || !pass){
+    document.getElementById('auth-msg').innerText = "אנא מלא את כל השדות";
+    return;
+  }
+
+  const email = makeEmail(first, last);
+  try {
+    document.getElementById('auth-msg').innerText = "מנסה להתחבר...";
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch(err){
+    console.error("Login Error:", err);
+    let errorMsg = "שגיאה בהתחברות. ודא ששם המשתמש והסיסמה נכונים.";
+    if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+      errorMsg = "שם משתמש או סיסמה שגויים.";
+    } else if (err.code === 'auth/invalid-email') {
+      errorMsg = "פורמט שם משתמש (אימייל) שגוי. ודא ששם פרטי ומשפחה תקינים.";
+    }
+    document.getElementById('auth-msg').innerText = errorMsg;
+  }
+}
+
+// signup
+async function signup(){
+  const first = document.getElementById('signup-first').value.trim();
+  const last = document.getElementById('signup-last').value.trim();
+  const pass = document.getElementById('signup-pass').value;
+  if(!first || !last || !pass){
+    document.getElementById('signup-msg').innerText = "אנא מלא את כל השדות";
+    return;
+  }
+
+  const email = makeEmail(first, last);
+  try {
+    document.getElementById('signup-msg').innerText = "יוצר משתמש...";
+    const res = await auth.createUserWithEmailAndPassword(email, pass);
+    const full = first + " " + last;
+    if(res && res.user){
+      await res.user.updateProfile({ displayName: full });
+    }
+    document.getElementById('signup-msg').innerText = "המשתמש נוצר! כעת התחבר.";
+    setTimeout(()=> {
+      hideSignup();
+    }, 800);
+  } catch(err){
+    console.error("Signup Error:", err);
+    document.getElementById('signup-msg').innerText = "שגיאה בהרשמה: " + err.message;
+  }
+}
+
+// logout
+async function logout(){
+  await auth.signOut();
+}
+
+// handle auth state changes (מונע הבהוב)
+auth.onAuthStateChanged(user => {
+  const authWrap = document.getElementById('auth-wrap');
+  const app = document.querySelector('.container');
+  // 1. מאשר שהבדיקה בוצעה (מטפל ב-CSS של ההבהוב)
+  document.body.classList.add('auth-initialized');
+
+  if(user){
+    // hide auth UI, show app
+    authWrap.classList.add('hidden');
+    app.classList.remove('hidden');
+    console.log("Logged in:", user.uid, user.email, user.displayName);
+  } else {
+    // show auth UI, hide app
+    authWrap.classList.remove('hidden');
+    app.classList.add('hidden');
+  }
+});
+// ---------------- END RE-INSERTED AUTH CODE ----------------
 </script>
 </body>
 </html>
