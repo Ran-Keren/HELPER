@@ -196,7 +196,7 @@ label {
     </div>
     <span class="link-small" id="auth-msg" aria-live="polite"></span>
   </div>
-    <div id="signup-card" class="auth-card hidden" role="region" aria-label="signup">
+  <div id="signup-card" class="auth-card hidden" role="region" aria-label="signup">
     <h2>הרשמה חדשה</h2>
     <label for="signup-first">שם פרטי</label>
     <input id="signup-first" type="text" placeholder="שם פרטי">
@@ -211,12 +211,13 @@ label {
     <span class="link-small" id="signup-msg" aria-live="polite"></span>
   </div>
 </div>
+
 <div class="container hidden">
-<div style="display: flex; justify-content: flex-start; margin-bottom: 10px;">
-<button style="background: #e53935; font-size: 1rem; padding: 6px 10px;" onclick="logout()">יציאה 🚪</button>
-</div>
+  <div style="display: flex; justify-content: flex-start; margin-bottom: 10px;">
+    <button style="background: #e53935; font-size: 1rem; padding: 6px 10px;" onclick="logout()">יציאה 🚪</button>
+  </div>
   <div id="view-grades">
-        <img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:200px; margin:10px auto; display:block;">
+    <img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:200px; margin:10px auto; display:block;">
     <h3>בחר שכבת גיל</h3>
     <button onclick="openGrade('ז')">ז</button>
     <button onclick="openGrade('ח')">ח</button>
@@ -280,13 +281,13 @@ label {
     <div id="social-meetings-list"></div>
   </div>
 </div>
+
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script>
-// ---------------- YOUR ORIGINAL FIREBASE + APP CODE (WITH SYNTAX FIXES) ----------------
-// Firebase config
+// ---------------- Firebase Config ----------------
 const firebaseConfig = {
   apiKey: "AIzaSyA8JW7C-tvAw1E-2rNthoI9yG-C4zjWjM4",
   authDomain: "helper-a6ca2.firebaseapp.com",
@@ -299,23 +300,125 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const storage = firebase.storage();
+const auth = firebase.auth();
 
+// ---------------- Constants ----------------
 const defaultSubjects = ["מדעים","ערבית","היסטוריה","מתמטיקה","אנגלית","גאוגרפיה","שפה"];
 const extraCategories = ["מפגש חברתי","ספורט","הצעות לשיפור או בקשות"];
-
 let currentGrade = null;
 let currentSubject = null;
 let selectedFile = null;
 let unsubscribe = null;
 let selectedSocialLocation = null;
 
-// Open grade function
-function openGrade(grade) {
+// ---------------- Utility: make email ----------------
+function makeEmail(first, last){
+  const displayName = (first + " " + last).trim();
+  const email = `${Date.now()}_${Math.random().toString(36).substring(2,7)}@myschool.local`;
+  return { email, displayName };
+}
+
+// ---------------- Auth UI ----------------
+function showSignup(){
+  document.getElementById('auth-card').classList.add('hidden');
+  document.getElementById('signup-card').classList.remove('hidden');
+  document.getElementById('auth-msg').innerText = "";
+}
+function hideSignup(){
+  document.getElementById('signup-card').classList.add('hidden');
+  document.getElementById('auth-card').classList.remove('hidden');
+  document.getElementById('signup-msg').innerText = "";
+}
+
+// ---------------- Login ----------------
+async function login(){
+  const first = document.getElementById('firstName').value.trim();
+  const last = document.getElementById('lastName').value.trim();
+  const pass = document.getElementById('password').value;
+  if(!first || !last || !pass){
+    document.getElementById('auth-msg').innerText = "אנא מלא את כל השדות";
+    return;
+  }
+
+  const displayName = first + " " + last;
+  const users = await db.collection("users").where("displayName","==",displayName).get();
+  if(users.empty){
+    document.getElementById('auth-msg').innerText = "משתמש לא נמצא או לא אושר";
+    return;
+  }
+  const userDoc = users.docs[0];
+  const email = userDoc.data().email;
+
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch(err){
+    document.getElementById('auth-msg').innerText = "שם משתמש או סיסמה שגויים.";
+  }
+}
+
+// ---------------- Signup ----------------
+async function signup(){
+  const first = document.getElementById('signup-first').value.trim();
+  const last = document.getElementById('signup-last').value.trim();
+  const pass = document.getElementById('signup-pass').value;
+  if(!first || !last || !pass){
+    document.getElementById('signup-msg').innerText = "אנא מלא את כל השדות";
+    return;
+  }
+
+  const { email, displayName } = makeEmail(first, last);
+  try {
+    const res = await auth.createUserWithEmailAndPassword(email, pass);
+    if(res && res.user){
+      await res.user.updateProfile({ displayName: displayName });
+      await db.collection("users").doc(res.user.uid).set({
+        displayName,
+        email,
+        permitted: false
+      });
+    }
+    document.getElementById('signup-msg').innerText = "המשתמש נוצר! כעת ממתין לאישור מנהל.";
+  } catch(err){
+    document.getElementById('signup-msg').innerText = "שגיאה בהרשמה: " + err.message;
+  }
+}
+
+// ---------------- Logout ----------------
+async function logout(){
+  await auth.signOut();
+}
+
+// ---------------- Auth State Handler ----------------
+auth.onAuthStateChanged(async user => {
+  const authWrap = document.getElementById('auth-wrap');
+  const app = document.querySelector('.container');
+  document.body.classList.add('auth-initialized');
+
+  if(user){
+    const userDoc = await db.collection("users").doc(user.uid).get();
+    const data = userDoc.data();
+    if(data && data.permitted){
+      authWrap.classList.add('hidden');
+      app.classList.remove('hidden');
+    } else {
+      authWrap.classList.remove('hidden');
+      app.classList.add('hidden');
+      document.getElementById('auth-msg').innerText = "משתמש מחכה לאישור מנהל";
+      await auth.signOut();
+    }
+  } else {
+    authWrap.classList.remove('hidden');
+    app.classList.add('hidden');
+  }
+});
+// ---------------- Grade / Subject / Form ----------------
+function openGrade(grade){
   currentGrade = grade;
   document.getElementById("view-grades").classList.add("hidden");
   document.getElementById("view-subjects").classList.remove("hidden");
   document.getElementById("subject-title").innerText = "מקצועות בשכבת " + grade;
 
+  // Populate default subjects
   const subjectList = document.getElementById("subject-list");
   subjectList.innerHTML = "";
   defaultSubjects.forEach(sub => {
@@ -325,6 +428,7 @@ function openGrade(grade) {
     subjectList.appendChild(btn);
   });
 
+  // Populate extra categories
   const catList = document.getElementById("category-list");
   catList.innerHTML = "";
   extraCategories.forEach(cat => {
@@ -337,7 +441,7 @@ function openGrade(grade) {
   });
 }
 
-// Back navigation
+// Navigate back to grades view
 function backToGrades() {
   document.getElementById("view-subjects").classList.add("hidden");
   document.getElementById("view-form").classList.add("hidden");
@@ -346,6 +450,7 @@ function backToGrades() {
   document.getElementById("view-grades").classList.remove("hidden");
 }
 
+// Navigate back to subjects view
 function backToSubjects() {
   document.getElementById("view-form").classList.add("hidden");
   document.getElementById("view-sport-events").classList.add("hidden");
@@ -354,34 +459,7 @@ function backToSubjects() {
   document.getElementById("view-subjects").classList.remove("hidden");
 }
 
-// IMAGE UPLOAD
-document.getElementById("imageInput").addEventListener("change", e => {
-  selectedFile = e.target.files[0];
-  const cancelBtn = document.getElementById("cancelImageBtn");
-  const preview = document.getElementById("preview");
-
-  if(selectedFile){
-    cancelBtn.classList.remove("hidden");
-    const reader = new FileReader();
-    reader.onload = e2 => {
-      preview.src = e2.target.result;
-      preview.classList.remove("hidden");
-    };
-    reader.readAsDataURL(selectedFile);
-  } else cancelImage();
-});
-
-function cancelImage(){
-  selectedFile = null;
-  const input = document.getElementById("imageInput");
-  const preview = document.getElementById("preview");
-  input.value = "";
-  preview.src = "";
-  preview.classList.add("hidden");
-  document.getElementById("cancelImageBtn").classList.add("hidden");
-}
-
-// Open form
+// Open form for adding notes
 function openForm(subject) {
   currentSubject = subject;
   document.getElementById("view-subjects").classList.add("hidden");
@@ -393,7 +471,7 @@ function openForm(subject) {
   loadNotes();
 }
 
-// Save comment
+// Save a subject note
 async function saveSubject(parentCommentId = null) {
   const comment = document.getElementById("comment").value.trim();
   const description = document.getElementById("description").value.trim();
@@ -403,7 +481,6 @@ async function saveSubject(parentCommentId = null) {
     let imageUrl = "";
     if(selectedFile){
       const storageRef = storage.ref();
-      // FIX 1: ADDED BACKTICKS TO TEMPLATE LITERAL FOR STORAGE PATH
       const fileRef = storageRef.child(`${currentGrade}/${currentSubject}/${Date.now()}-${selectedFile.name}`);
       await fileRef.put(selectedFile);
       imageUrl = await fileRef.getDownloadURL();
@@ -440,7 +517,7 @@ async function saveSubject(parentCommentId = null) {
   }
 }
 
-// Load notes with real-time updates
+// Load notes in real-time
 function loadNotes() {
   const list = document.getElementById("notes-list");
   const ref = db.collection("grades").doc(currentGrade)
@@ -454,7 +531,6 @@ function loadNotes() {
       const note = doc.data();
       const div = document.createElement("div");
       div.className="note";
-      // FIX 2: ADDED BACKTICKS TO TEMPLATE LITERAL FOR NOTE HTML
       div.innerHTML=`<h4>${note.comment}</h4><p>${note.description}</p>`+
                     (note.imageUrl ? `<img src="${note.imageUrl}">` : "");
 
@@ -490,11 +566,9 @@ function loadNotes() {
           const r = replyDoc.data();
           const rDiv = document.createElement("div");
           rDiv.className="reply";
-          // FIX 3: ADDED BACKTICKS TO TEMPLATE LITERAL FOR REPLY HTML
           rDiv.innerHTML=`<strong>${r.comment}</strong><p>${r.description}</p>`+
                          (r.imageUrl ? `<img src="${r.imageUrl}">` : "");
 
-          // Delete reply
           const delReplyBtn = document.createElement("button");
           delReplyBtn.innerText = "🗑️ מחק";
           delReplyBtn.style.background = "#d32f2f";
@@ -505,7 +579,6 @@ function loadNotes() {
             }
           };
           rDiv.appendChild(delReplyBtn);
-
           div.appendChild(rDiv);
         });
       });
@@ -526,39 +599,38 @@ async function saveSubjectReply(parentCommentId, comment, description){
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
 }
-
-// SPORT EVENTS
-function openSportEvents(){
+  // ---------------- SPORT EVENTS ----------------
+function openSportEvents() {
   document.getElementById("view-subjects").classList.add("hidden");
   document.getElementById("view-sport-events").classList.remove("hidden");
   loadSportEvents();
 }
 
-function saveSportEvent(){
+function saveSportEvent() {
   const eventName = document.getElementById("sport-event-select").value;
   const date = document.getElementById("sport-date").value;
   const time = document.getElementById("sport-time").value;
-  if(!date || !time){ alert("אנא בחר תאריך ושעה"); return; }
+  if (!date || !time) { alert("אנא בחר תאריך ושעה"); return; }
+
   db.collection("grades").doc(currentGrade)
     .collection("sport_events").add({
       name: eventName,
       date,
       time,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(()=>loadSportEvents());
+    }).then(() => loadSportEvents());
 }
 
-function loadSportEvents(){
+function loadSportEvents() {
   const list = document.getElementById("sport-events-list");
   list.innerHTML = "";
   db.collection("grades").doc(currentGrade)
-    .collection("sport_events").orderBy("timestamp","desc")
-    .get().then(snapshot=>{
-      snapshot.forEach(doc=>{
+    .collection("sport_events").orderBy("timestamp", "desc")
+    .get().then(snapshot => {
+      snapshot.forEach(doc => {
         const e = doc.data();
         const div = document.createElement("div");
-        div.className="event";
-        // FIX 4: ADDED BACKTICKS TO TEMPLATE LITERAL FOR EVENT TEXT
+        div.className = "event";
         div.innerText = `${e.name} - ${e.date} ${e.time}`;
 
         // Delete button
@@ -567,7 +639,7 @@ function loadSportEvents(){
         delBtn.style.background = "#d32f2f";
         delBtn.style.marginLeft = "4px";
         delBtn.onclick = async () => {
-          if(confirm("למחוק אירוע זה?")) {
+          if (confirm("למחוק אירוע זה?")) {
             await doc.ref.delete();
             loadSportEvents();
           }
@@ -579,44 +651,44 @@ function loadSportEvents(){
     });
 }
 
-// SOCIAL MEETING
-function openSocialMeeting(){
+// ---------------- SOCIAL MEETING ----------------
+function openSocialMeeting() {
   document.getElementById("view-subjects").classList.add("hidden");
   document.getElementById("view-social-meeting").classList.remove("hidden");
   document.getElementById("social-datetime").classList.add("hidden");
   loadSocialMeetings();
 }
 
-function selectSocialLocation(location){
+function selectSocialLocation(location) {
   selectedSocialLocation = location;
   document.getElementById("selected-location").innerText = location;
   document.getElementById("social-datetime").classList.remove("hidden");
 }
 
-function saveSocialMeeting(){
+function saveSocialMeeting() {
   const date = document.getElementById("social-date").value;
   const time = document.getElementById("social-time").value;
-  if(!selectedSocialLocation || !date || !time){ alert("אנא מלא את כל השדות"); return; }
+  if (!selectedSocialLocation || !date || !time) { alert("אנא מלא את כל השדות"); return; }
+
   db.collection("grades").doc(currentGrade)
     .collection("social_meetings").add({
       location: selectedSocialLocation,
       date,
       time,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(()=> loadSocialMeetings());
+    }).then(() => loadSocialMeetings());
 }
 
-function loadSocialMeetings(){
+function loadSocialMeetings() {
   const list = document.getElementById("social-meetings-list");
   list.innerHTML = "";
   db.collection("grades").doc(currentGrade)
-    .collection("social_meetings").orderBy("timestamp","desc")
-    .get().then(snapshot=>{
-      snapshot.forEach(doc=>{
+    .collection("social_meetings").orderBy("timestamp", "desc")
+    .get().then(snapshot => {
+      snapshot.forEach(doc => {
         const e = doc.data();
         const div = document.createElement("div");
-        div.className="social";
-        // FIX 5: ADDED BACKTICKS TO TEMPLATE LITERAL FOR SOCIAL TEXT
+        div.className = "social";
         div.innerText = `${e.location} - ${e.date} ${e.time}`;
 
         // Delete button
@@ -625,7 +697,7 @@ function loadSocialMeetings(){
         delBtn.style.background = "#d32f2f";
         delBtn.style.marginLeft = "4px";
         delBtn.onclick = async () => {
-          if(confirm("למחוק מפגש זה?")) {
+          if (confirm("למחוק מפגש זה?")) {
             await doc.ref.delete();
             loadSocialMeetings();
           }
@@ -637,108 +709,96 @@ function loadSocialMeetings(){
     });
 }
 
-// ---------------- END ORIGINAL APP CODE ----------------
-
-// ---------------- RE-INSERTED & CORRECTED AUTH CODE ----------------
+// ---------------- FIREBASE AUTH (LOGIN / SIGNUP / LOGOUT) ----------------
 const auth = firebase.auth();
-// utility: make email from first + last
-function makeEmail(first, last){
-  // 1. Basic cleanup: trim, remove spaces and dots.
-  let f = (first || "").trim().replace(/\s+/g,"").replace(/\./g, '');
-  let l = (last || "").trim().replace(/\s+/g,"").replace(/\./g, '');
-  
-  // 2. **CRITICAL FIX FOR FIREBASE AUTH:** Remove all non-ASCII/non-Latin characters (like Hebrew letters) 
-  // to ensure the email's local part is valid.
-  const ascii_cleanup = (str) => str.replace(/[^a-zA-Z0-9]/g, '');
 
+// Helper: generate email from first + last name
+function makeEmail(first, last) {
+  // Clean spaces/dots
+  let f = (first || "").trim().replace(/\s+/g, "").replace(/\./g, '');
+  let l = (last || "").trim().replace(/\s+/g, "").replace(/\./g, '');
+  // Remove non-ASCII characters (Firebase email requirement)
+  const ascii_cleanup = str => str.replace(/[^a-zA-Z0-9]/g, '');
   f = ascii_cleanup(f);
   l = ascii_cleanup(l);
-  
-  // 3. Construct the final ASCII email string correctly (removed trailing .toLowerCase(); from previous error).
   return `${f}.${l}@myschool.local`.toLowerCase();
 }
 
-// show/hide signup
-function showSignup(){
+// Show/Hide signup
+function showSignup() {
   document.getElementById('auth-card').classList.add('hidden');
   document.getElementById('signup-card').classList.remove('hidden');
   document.getElementById('auth-msg').innerText = "";
 }
-function hideSignup(){
+function hideSignup() {
   document.getElementById('signup-card').classList.add('hidden');
   document.getElementById('auth-card').classList.remove('hidden');
   document.getElementById('signup-msg').innerText = "";
 }
 
 // LOGIN
-async function login(){
+async function login() {
   const first = document.getElementById('firstName').value.trim();
   const last = document.getElementById('lastName').value.trim();
   const pass = document.getElementById('password').value;
-  if(!first || !last || !pass){
+  if (!first || !last || !pass) {
     document.getElementById('auth-msg').innerText = "אנא מלא את כל השדות";
     return;
   }
 
-  // find user in Firestore by displayName
-  const displayName = first + " " + last;
-  const users = await db.collection("users").where("displayName","==",displayName).get();
-  if(users.empty){
-    document.getElementById('auth-msg').innerText = "משתמש לא נמצא או לא מאושר";
-    return;
-  }
-  const userDoc = users.docs[0];
-  const email = userDoc.data().email;
-
+  const email = makeEmail(first, last);
   try {
+    document.getElementById('auth-msg').innerText = "מנסה להתחבר...";
     await auth.signInWithEmailAndPassword(email, pass);
-  } catch(err){
-    document.getElementById('auth-msg').innerText = "שם משתמש או סיסמה שגויים.";
+  } catch (err) {
+    console.error("Login Error:", err);
+    let errorMsg = "שגיאה בהתחברות. ודא ששם המשתמש והסיסמה נכונים.";
+    if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+      errorMsg = "שם משתמש או סיסמה שגויים.";
+    } else if (err.code === 'auth/invalid-email') {
+      errorMsg = "פורמט שם משתמש שגוי. ודא ששם פרטי ומשפחה תקינים באנגלית.";
+    }
+    document.getElementById('auth-msg').innerText = errorMsg;
   }
 }
 
 // SIGNUP
-async function signup(){
+async function signup() {
   const first = document.getElementById('signup-first').value.trim();
   const last = document.getElementById('signup-last').value.trim();
   const pass = document.getElementById('signup-pass').value;
-  if(!first || !last || !pass){
+  if (!first || !last || !pass) {
     document.getElementById('signup-msg').innerText = "אנא מלא את כל השדות";
     return;
   }
 
-  const { email, displayName } = makeEmail(first, last);
+  const email = makeEmail(first, last);
   try {
+    document.getElementById('signup-msg').innerText = "יוצר משתמש...";
     const res = await auth.createUserWithEmailAndPassword(email, pass);
-    if(res && res.user){
-      await res.user.updateProfile({ displayName: displayName });
-      // Save to Firestore for login by displayName
-      await db.collection("users").doc(res.user.uid).set({
-        displayName,
-        email,
-        permitted: false // <-- initially not permitted
-      });
+    if (res && res.user) {
+      await res.user.updateProfile({ displayName: first + " " + last });
     }
-    document.getElementById('signup-msg').innerText = "המשתמש נוצר! כעת ממתין לאישור מנהל.";
-  } catch(err){
+    document.getElementById('signup-msg').innerText = "המשתמש נוצר! כעת התחבר.";
+    setTimeout(() => hideSignup(), 800);
+  } catch (err) {
+    console.error("Signup Error:", err);
     document.getElementById('signup-msg').innerText = "שגיאה בהרשמה: " + err.message;
   }
 }
 
-
-// logout
-async function logout(){
+// LOGOUT
+async function logout() {
   await auth.signOut();
 }
 
-// handle auth state changes (מונע הבהוב)
+// Handle auth state changes (prevent page flicker)
 auth.onAuthStateChanged(user => {
   const authWrap = document.getElementById('auth-wrap');
   const app = document.querySelector('.container');
-  // 1. מאשר שהבדיקה בוצעה (מטפל ב-CSS של ההבהוב)
   document.body.classList.add('auth-initialized');
 
-  if(user){
+  if (user) {
     // hide auth UI, show app
     authWrap.classList.add('hidden');
     app.classList.remove('hidden');
@@ -749,8 +809,3 @@ auth.onAuthStateChanged(user => {
     app.classList.add('hidden');
   }
 });
-// ---------------- END RE-INSERTED & CORRECTED AUTH CODE ----------------
-</script>
-</body>
-</html>
-
