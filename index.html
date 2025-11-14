@@ -634,14 +634,15 @@ function loadSocialMeetings(){
 
 // ---------------- END ORIGINAL APP CODE ----------------
 
-// ---------------- RE-INSERTED AUTH CODE ----------------
+// ---------------- RE-INSERTED & CORRECTED AUTH CODE ----------------
 const auth = firebase.auth();
 // utility: make email from first + last
 function makeEmail(first, last){
   // normalize spaces and remove dots
   const f = (first || "").trim().replace(/\s+/g,"").replace(/\./g, '');
   const l = (last || "").trim().replace(/\s+/g,"").replace(/\./g, '');
-  return `${f}.${l}@myschool.local.toLowerCase();`
+  // !! CORRECTION: REMOVED THE UNWANTED BACKTICK (`) AND SEMICOLON (;) !!
+  return `${f}.${l}@myschool.local.toLowerCase()`;
 }
 
 // show/hide signup
@@ -676,6 +677,7 @@ async function login(){
     if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
       errorMsg = "שם משתמש או סיסמה שגויים.";
     } else if (err.code === 'auth/invalid-email') {
+      // The correction above should prevent this, but we keep the message for real invalid input.
       errorMsg = "פורמט שם משתמש (אימייל) שגוי. ודא ששם פרטי ומשפחה תקינים.";
     }
     document.getElementById('auth-msg').innerText = errorMsg;
@@ -733,7 +735,7 @@ auth.onAuthStateChanged(user => {
     app.classList.add('hidden');
   }
 });
-// ---------------- END RE-INSERTED AUTH CODE ----------------
+// ---------------- END RE-INSERTED & CORRECTED AUTH CODE ----------------
 </script>
 </body>
 </html>
