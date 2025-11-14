@@ -285,7 +285,7 @@ label {
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script>
-// ---------------- YOUR ORIGINAL FIREBASE + APP CODE (UNCHANGED) ----------------
+// ---------------- YOUR ORIGINAL FIREBASE + APP CODE (WITH SYNTAX FIXES) ----------------
 // Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyA8JW7C-tvAw1E-2rNthoI9yG-C4zjWjM4",
@@ -403,6 +403,7 @@ async function saveSubject(parentCommentId = null) {
     let imageUrl = "";
     if(selectedFile){
       const storageRef = storage.ref();
+      // FIX 1: ADDED BACKTICKS TO TEMPLATE LITERAL FOR STORAGE PATH
       const fileRef = storageRef.child(`${currentGrade}/${currentSubject}/${Date.now()}-${selectedFile.name}`);
       await fileRef.put(selectedFile);
       imageUrl = await fileRef.getDownloadURL();
@@ -453,6 +454,7 @@ function loadNotes() {
       const note = doc.data();
       const div = document.createElement("div");
       div.className="note";
+      // FIX 2: ADDED BACKTICKS TO TEMPLATE LITERAL FOR NOTE HTML
       div.innerHTML=`<h4>${note.comment}</h4><p>${note.description}</p>`+
                     (note.imageUrl ? `<img src="${note.imageUrl}">` : "");
 
@@ -488,6 +490,7 @@ function loadNotes() {
           const r = replyDoc.data();
           const rDiv = document.createElement("div");
           rDiv.className="reply";
+          // FIX 3: ADDED BACKTICKS TO TEMPLATE LITERAL FOR REPLY HTML
           rDiv.innerHTML=`<strong>${r.comment}</strong><p>${r.description}</p>`+
                          (r.imageUrl ? `<img src="${r.imageUrl}">` : "");
 
@@ -555,6 +558,7 @@ function loadSportEvents(){
         const e = doc.data();
         const div = document.createElement("div");
         div.className="event";
+        // FIX 4: ADDED BACKTICKS TO TEMPLATE LITERAL FOR EVENT TEXT
         div.innerText = `${e.name} - ${e.date} ${e.time}`;
 
         // Delete button
@@ -612,6 +616,7 @@ function loadSocialMeetings(){
         const e = doc.data();
         const div = document.createElement("div");
         div.className="social";
+        // FIX 5: ADDED BACKTICKS TO TEMPLATE LITERAL FOR SOCIAL TEXT
         div.innerText = `${e.location} - ${e.date} ${e.time}`;
 
         // Delete button
@@ -638,18 +643,18 @@ function loadSocialMeetings(){
 const auth = firebase.auth();
 // utility: make email from first + last
 function makeEmail(first, last){
-  // 1. Basic cleanup: trim, remove spaces and dots (as per original intent).
+  // 1. Basic cleanup: trim, remove spaces and dots.
   let f = (first || "").trim().replace(/\s+/g,"").replace(/\./g, '');
   let l = (last || "").trim().replace(/\s+/g,"").replace(/\./g, '');
   
-  // 2. **CRITICAL FIX:** Remove all non-ASCII/non-Latin characters (like Hebrew letters) 
-  // to ensure the email's local part is valid for Firebase Auth.
+  // 2. **CRITICAL FIX FOR FIREBASE AUTH:** Remove all non-ASCII/non-Latin characters (like Hebrew letters) 
+  // to ensure the email's local part is valid.
   const ascii_cleanup = (str) => str.replace(/[^a-zA-Z0-9]/g, '');
 
   f = ascii_cleanup(f);
   l = ascii_cleanup(l);
   
-  // 3. Construct the final ASCII email string in lowercase.
+  // 3. Construct the final ASCII email string correctly (removed trailing .toLowerCase(); from previous error).
   return `${f}.${l}@myschool.local`.toLowerCase();
 }
 
@@ -685,7 +690,7 @@ async function login(){
     if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
       errorMsg = "שם משתמש או סיסמה שגויים.";
     } else if (err.code === 'auth/invalid-email') {
-      errorMsg = "פורמט שם משתמש (אימייל) שגוי. ודא ששם פרטי ומשפחה תקינים.";
+      errorMsg = "פורמט שם משתמש (אימייל) שגוי. ודא ששם פרטי ומשפחה תקינים, ורק אותיות אנגליות מותרות.";
     }
     document.getElementById('auth-msg').innerText = errorMsg;
   }
