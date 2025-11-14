@@ -5,8 +5,7 @@
 <title>Helper School App</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
 <style>
-/* -------------------- CSS Fix for Flicker -------------------- */
-/* הסתרת כל התוכן עד ש-Firebase יאשר את מצב ההתחברות */
+/* -------------------- CSS Fix for Flicker (שומר על הסתרה עד אימות) -------------------- */
 body:not(.auth-initialized) #auth-wrap,
 body:not(.auth-initialized) .container {
     visibility: hidden;
@@ -244,13 +243,13 @@ label {
 </div>
 <div class="container hidden">
 
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+    <div style="display: flex; justify-content: flex-start; margin-bottom: 10px;">
         <button style="background: #e53935; font-size: 1rem; padding: 6px 10px;" onclick="logout()">יציאה 🚪</button>
-        <img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:120px; margin:0; display:block;">
     </div>
 
-
   <div id="view-grades">
+        <img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:200px; margin:10px auto; display:block;">
+
     <h3>בחר שכבת גיל</h3>
     <button onclick="openGrade('ז')">ז</button>
     <button onclick="openGrade('ח')">ח</button>
@@ -321,7 +320,6 @@ label {
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 
 <script>
@@ -679,9 +677,9 @@ const auth = firebase.auth();
 
 // utility: make email from first + last
 function makeEmail(first, last){
-  // normalize spaces and dots
-  const f = (first || "").trim().replace(/\s+/g,".").replace(/\./g, ''); // הסרת רווחים ונקודות נוספות
-  const l = (last || "").trim().replace(/\s+/g,".").replace(/\./g, '');
+  // normalize spaces and remove dots
+  const f = (first || "").trim().replace(/\s+/g,"").replace(/\./g, ''); 
+  const l = (last || "").trim().replace(/\s+/g,"").replace(/\./g, '');
   return `${f}.${l}@myschool.local`.toLowerCase();
 }
 
@@ -697,7 +695,7 @@ function hideSignup(){
   document.getElementById('signup-msg').innerText = "";
 }
 
-// login
+// login (כולל טיפול משופר בשגיאות)
 async function login(){
   const first = document.getElementById('firstName').value.trim();
   const last = document.getElementById('lastName').value.trim();
@@ -712,10 +710,8 @@ async function login(){
   try {
     document.getElementById('auth-msg').innerText = "מנסה להתחבר...";
     await auth.signInWithEmailAndPassword(email, pass);
-    // on success, onAuthStateChanged will run and show the app
   } catch(err){
     console.error("Login Error:", err);
-    // **תיקון: הצגת שגיאה ברורה כדי למנוע מצב "תקוע"**
     let errorMsg = "שגיאה בהתחברות. ודא ששם המשתמש והסיסמה נכונים.";
     if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
         errorMsg = "שם משתמש או סיסמה שגויים.";
@@ -741,13 +737,11 @@ async function signup(){
   try {
     document.getElementById('signup-msg').innerText = "יוצר משתמש...";
     const res = await auth.createUserWithEmailAndPassword(email, pass);
-    // set displayName (optional) so you can identify user
     const full = first + " " + last;
     if(res && res.user){
       await res.user.updateProfile({ displayName: full });
     }
     document.getElementById('signup-msg').innerText = "המשתמש נוצר! כעת התחבר.";
-    // switch to login
     setTimeout(()=> {
       hideSignup();
     }, 800);
@@ -762,24 +756,24 @@ async function logout(){
   await auth.signOut();
 }
 
-// handle auth state changes
+// handle auth state changes (מונע הבהוב)
 auth.onAuthStateChanged(user => {
   const authWrap = document.getElementById('auth-wrap');
   const app = document.querySelector('.container');
+
+  // 1. מאשר שהבדיקה בוצעה (מטפל ב-CSS של ההבהוב)
+  document.body.classList.add('auth-initialized');
+  
   if(user){
     // hide auth UI, show app
     authWrap.classList.add('hidden');
     app.classList.remove('hidden');
-
-    // OPTIONAL: you can display user name somewhere or store it
     console.log("Logged in:", user.uid, user.email, user.displayName);
   } else {
     // show auth UI, hide app
     authWrap.classList.remove('hidden');
     app.classList.add('hidden');
   }
-    // **תיקון: מסמן שהאפליקציה בדקה את מצב ההתחברות ומוכנה להצגה/הסתרה**
-    document.body.classList.add('auth-initialized');
 });
 </script>
 </body>
