@@ -638,11 +638,19 @@ function loadSocialMeetings(){
 const auth = firebase.auth();
 // utility: make email from first + last
 function makeEmail(first, last){
-  // normalize spaces and remove dots
-  const f = (first || "").trim().replace(/\s+/g,"").replace(/\./g, '');
-  const l = (last || "").trim().replace(/\s+/g,"").replace(/\./g, '');
-  // !! CORRECTION: REMOVED THE UNWANTED BACKTICK (`) AND SEMICOLON (;) !!
-  return `${f}.${l}@myschool.local.toLowerCase()`;
+  // 1. Basic cleanup: trim, remove spaces and dots (as per original intent).
+  let f = (first || "").trim().replace(/\s+/g,"").replace(/\./g, '');
+  let l = (last || "").trim().replace(/\s+/g,"").replace(/\./g, '');
+  
+  // 2. **CRITICAL FIX:** Remove all non-ASCII/non-Latin characters (like Hebrew letters) 
+  // to ensure the email's local part is valid for Firebase Auth.
+  const ascii_cleanup = (str) => str.replace(/[^a-zA-Z0-9]/g, '');
+
+  f = ascii_cleanup(f);
+  l = ascii_cleanup(l);
+  
+  // 3. Construct the final ASCII email string in lowercase.
+  return `${f}.${l}@myschool.local`.toLowerCase();
 }
 
 // show/hide signup
@@ -677,7 +685,6 @@ async function login(){
     if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
       errorMsg = "שם משתמש או סיסמה שגויים.";
     } else if (err.code === 'auth/invalid-email') {
-      // The correction above should prevent this, but we keep the message for real invalid input.
       errorMsg = "פורמט שם משתמש (אימייל) שגוי. ודא ששם פרטי ומשפחה תקינים.";
     }
     document.getElementById('auth-msg').innerText = errorMsg;
