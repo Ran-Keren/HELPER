@@ -670,7 +670,7 @@ function hideSignup(){
   document.getElementById('signup-msg').innerText = "";
 }
 
-// login (כולל טיפול משופר בשגיאות)
+// LOGIN
 async function login(){
   const first = document.getElementById('firstName').value.trim();
   const last = document.getElementById('lastName').value.trim();
@@ -680,23 +680,24 @@ async function login(){
     return;
   }
 
-  const email = makeEmail(first, last);
+  // find user in Firestore by displayName
+  const displayName = first + " " + last;
+  const users = await db.collection("users").where("displayName","==",displayName).get();
+  if(users.empty){
+    document.getElementById('auth-msg').innerText = "משתמש לא נמצא או לא מאושר";
+    return;
+  }
+  const userDoc = users.docs[0];
+  const email = userDoc.data().email;
+
   try {
-    document.getElementById('auth-msg').innerText = "מנסה להתחבר...";
     await auth.signInWithEmailAndPassword(email, pass);
   } catch(err){
-    console.error("Login Error:", err);
-    let errorMsg = "שגיאה בהתחברות. ודא ששם המשתמש והסיסמה נכונים.";
-    if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-      errorMsg = "שם משתמש או סיסמה שגויים.";
-    } else if (err.code === 'auth/invalid-email') {
-      errorMsg = "פורמט שם משתמש (אימייל) שגוי. ודא ששם פרטי ומשפחה תקינים, ורק אותיות אנגליות מותרות.";
-    }
-    document.getElementById('auth-msg').innerText = errorMsg;
+    document.getElementById('auth-msg').innerText = "שם משתמש או סיסמה שגויים.";
   }
 }
 
-// signup
+// SIGNUP
 async function signup(){
   const first = document.getElementById('signup-first').value.trim();
   const last = document.getElementById('signup-last').value.trim();
@@ -706,23 +707,24 @@ async function signup(){
     return;
   }
 
-  const email = makeEmail(first, last);
+  const { email, displayName } = makeEmail(first, last);
   try {
-    document.getElementById('signup-msg').innerText = "יוצר משתמש...";
     const res = await auth.createUserWithEmailAndPassword(email, pass);
-    const full = first + " " + last;
     if(res && res.user){
-      await res.user.updateProfile({ displayName: full });
+      await res.user.updateProfile({ displayName: displayName });
+      // Save to Firestore for login by displayName
+      await db.collection("users").doc(res.user.uid).set({
+        displayName,
+        email,
+        permitted: false // <-- initially not permitted
+      });
     }
-    document.getElementById('signup-msg').innerText = "המשתמש נוצר! כעת התחבר.";
-    setTimeout(()=> {
-      hideSignup();
-    }, 800);
+    document.getElementById('signup-msg').innerText = "המשתמש נוצר! כעת ממתין לאישור מנהל.";
   } catch(err){
-    console.error("Signup Error:", err);
     document.getElementById('signup-msg').innerText = "שגיאה בהרשמה: " + err.message;
   }
 }
+
 
 // logout
 async function logout(){
@@ -751,3 +753,4 @@ auth.onAuthStateChanged(user => {
 </script>
 </body>
 </html>
+
