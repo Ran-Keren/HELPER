@@ -8,7 +8,7 @@
 /* -------------------- CSS Fix for Flicker (שומר על הסתרה עד אימות) -------------------- */
 body:not(.auth-initialized) #auth-wrap,
 body:not(.auth-initialized) .container {
-    visibility: hidden;
+    visibility: hidden;
 }
 /* ------------------------------------------------------------- */
 html, body {
@@ -118,6 +118,28 @@ body {
   margin-bottom: 300px; /* adjust as needed */
 }
 
+/* סגנון כפתור יציאה מתוקן */
+.logout-btn-container {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 15px; /* הגדל מעט את המרווח מתחת */
+  align-items: center;
+}
+
+.logout-btn-style {
+  background: #e53935; /* אדום */
+  font-size: 1rem !important; /* חשוב: עוקף את הגדרת הכפתור הכללית */
+  padding: 6px 10px !important;
+  border-radius: 6px;
+  margin: 0 !important; /* ודא שאין שוליים מפריעים */
+  transition: background 0.3s;
+}
+
+.logout-btn-style:hover {
+  background: #c62828;
+}
+
+/* כללי */
 h2 { font-size: 2rem; margin-bottom: 0px; }
 h3 { font-size: 1.6rem; margin-bottom: 0px; }
 h4 { font-size: 1.4rem; margin-bottom: 0px; }
@@ -243,9 +265,9 @@ label {
 </div>
 <div class="container hidden">
 
-    <div style="display: flex; justify-content: flex-start; margin-bottom: 10px;">
-        <button style="background: #e53935; font-size: 1rem; padding: 6px 10px;" onclick="logout()">יציאה 🚪</button>
-    </div>
+    <div class="logout-btn-container">
+        <button class="logout-btn-style" onclick="logout()">יציאה 🚪</button>
+    </div>
 
   <div id="view-grades">
         <img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:200px; margin:10px auto; display:block;">
@@ -678,7 +700,7 @@ const auth = firebase.auth();
 // utility: make email from first + last
 function makeEmail(first, last){
   // normalize spaces and remove dots
-  const f = (first || "").trim().replace(/\s+/g,"").replace(/\./g, ''); 
+  const f = (first || "").trim().replace(/\s+/g,"").replace(/\./g, ''); 
   const l = (last || "").trim().replace(/\s+/g,"").replace(/\./g, '');
   return `${f}.${l}@myschool.local`.toLowerCase();
 }
@@ -712,13 +734,13 @@ async function login(){
     await auth.signInWithEmailAndPassword(email, pass);
   } catch(err){
     console.error("Login Error:", err);
-    let errorMsg = "שגיאה בהתחברות. ודא ששם המשתמש והסיסמה נכונים.";
-    if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        errorMsg = "שם משתמש או סיסמה שגויים.";
-    } else if (err.code === 'auth/invalid-email') {
-        errorMsg = "פורמט שם משתמש (אימייל) שגוי. ודא ששם פרטי ומשפחה תקינים.";
-    }
-    document.getElementById('auth-msg').innerText = errorMsg;
+    let errorMsg = "שגיאה בהתחברות. ודא ששם המשתמש והסיסמה נכונים.";
+    if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        errorMsg = "שם משתמש או סיסמה שגויים.";
+    } else if (err.code === 'auth/invalid-email') {
+        errorMsg = "פורמט שם משתמש (אימייל) שגוי. ודא ששם פרטי ומשפחה תקינים.";
+    }
+    document.getElementById('auth-msg').innerText = errorMsg;
   }
 }
 
@@ -763,7 +785,7 @@ auth.onAuthStateChanged(user => {
 
   // 1. מאשר שהבדיקה בוצעה (מטפל ב-CSS של ההבהוב)
   document.body.classList.add('auth-initialized');
-  
+  
   if(user){
     // hide auth UI, show app
     authWrap.classList.add('hidden');
