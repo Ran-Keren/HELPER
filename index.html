@@ -16,6 +16,79 @@ html, body {
   overflow: hidden;
 }
 
+/* -------------------- LOGIN / SIGNUP (WHITE MINIMAL) -------------------- */
+#auth-wrap {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  padding: 22px;
+  box-sizing: border-box;
+  text-align: center;
+}
+.auth-card h2 {
+  margin: 0 0 12px 0;
+  font-size: 1.6rem;
+  color: #222;
+}
+.auth-card label {
+  display: block;
+  text-align: right;
+  font-weight: 600;
+  margin-top: 10px;
+  font-size: 0.95rem;
+}
+.auth-card input {
+  width: 100%;
+  padding: 10px;
+  margin-top: 6px;
+  box-sizing: border-box;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+.auth-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.auth-actions button {
+  padding: 10px 14px;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+.btn-primary {
+  background: #1976d2;
+  color: white;
+}
+.btn-ghost {
+  background: transparent;
+  color: #1976d2;
+  border: 1px solid #e6e6e6;
+}
+.link-small {
+  margin-top: 10px;
+  display: block;
+  color: #555;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+/* ----------------------------------------------------------------------- */
+
 body {
   display: flex;
   justify-content: center;
@@ -120,7 +193,54 @@ label {
 </style>
 </head>
 <body>
-<div class="container">
+
+<!-- ================== AUTH UI (Option A: appears before app) ================== -->
+<div id="auth-wrap">
+  <div id="auth-card" class="auth-card" role="region" aria-label="login">
+    <h2>התחברות למערכת</h2>
+
+    <label for="firstName">שם פרטי</label>
+    <input id="firstName" type="text" autocomplete="given-name" placeholder="שם פרטי">
+
+    <label for="lastName">שם משפחה</label>
+    <input id="lastName" type="text" autocomplete="family-name" placeholder="שם משפחה">
+
+    <label for="password">סיסמה</label>
+    <input id="password" type="password" autocomplete="current-password" placeholder="סיסמה">
+
+    <div class="auth-actions">
+      <button class="btn-primary" onclick="login()">התחבר</button>
+      <button class="btn-ghost" onclick="showSignup()">הרשמה</button>
+    </div>
+
+    <span class="link-small" id="auth-msg" aria-live="polite"></span>
+  </div>
+
+  <!-- Signup card (hidden by default) -->
+  <div id="signup-card" class="auth-card hidden" role="region" aria-label="signup">
+    <h2>הרשמה חדשה</h2>
+
+    <label for="signup-first">שם פרטי</label>
+    <input id="signup-first" type="text" placeholder="שם פרטי">
+
+    <label for="signup-last">שם משפחה</label>
+    <input id="signup-last" type="text" placeholder="שם משפחה">
+
+    <label for="signup-pass">סיסמה</label>
+    <input id="signup-pass" type="password" placeholder="סיסמה">
+
+    <div class="auth-actions">
+      <button class="btn-primary" onclick="signup()">צור משתמש</button>
+      <button class="btn-ghost" onclick="hideSignup()">חזור להתחברות</button>
+    </div>
+
+    <span class="link-small" id="signup-msg" aria-live="polite"></span>
+  </div>
+</div>
+<!-- ================== END AUTH UI ================== -->
+
+<!-- ================== YOUR APP (hidden until login) ================== -->
+<div class="container hidden">
 
   <div id="view-grades">
     <!-- Logo only on first page -->
@@ -193,11 +313,18 @@ label {
     <div id="social-meetings-list"></div>
   </div>
 </div>
+<!-- ================== END YOUR APP ================== -->
 
+<!-- Firebase libs -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+
+<!-- Auth compat (added) -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+
 <script>
+// ---------------- YOUR ORIGINAL FIREBASE + APP CODE (UNCHANGED) ----------------
 // Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyA8JW7C-tvAw1E-2rNthoI9yG-C4zjWjM4",
@@ -543,6 +670,119 @@ function loadSocialMeetings(){
       });
     });
 }
+// ---------------- END ORIGINAL APP CODE ----------------
 </script>
+
+<!-- ----------------- AUTH LOGIC ADDED (appends to original) ----------------- -->
+<script>
+/*
+  Auth implementation:
+  - Login / Signup using First + Last + Password
+  - Since Firebase Auth requires an email, we auto-generate:
+      firstname.lastname@myschool.local
+  - App remains hidden until auth state is a logged-in user
+*/
+
+const auth = firebase.auth();
+
+// utility: make email from first + last
+function makeEmail(first, last){
+  // normalize spaces and dots
+  const f = (first || "").trim().replace(/\s+/g,".");
+  const l = (last || "").trim().replace(/\s+/g,".");
+  return `${f}.${l}@myschool.local`.toLowerCase();
+}
+
+// show/hide signup
+function showSignup(){
+  document.getElementById('auth-card').classList.add('hidden');
+  document.getElementById('signup-card').classList.remove('hidden');
+  document.getElementById('auth-msg').innerText = "";
+}
+function hideSignup(){
+  document.getElementById('signup-card').classList.add('hidden');
+  document.getElementById('auth-card').classList.remove('hidden');
+  document.getElementById('signup-msg').innerText = "";
+}
+
+// login
+async function login(){
+  const first = document.getElementById('firstName').value.trim();
+  const last = document.getElementById('lastName').value.trim();
+  const pass = document.getElementById('password').value;
+
+  if(!first || !last || !pass){
+    document.getElementById('auth-msg').innerText = "אנא מלא את כל השדות";
+    return;
+  }
+
+  const email = makeEmail(first, last);
+  try {
+    document.getElementById('auth-msg').innerText = "מנסה להתחבר...";
+    await auth.signInWithEmailAndPassword(email, pass);
+    // on success, onAuthStateChanged will run and show the app
+  } catch(err){
+    console.error(err);
+    document.getElementById('auth-msg').innerText = "שגיאה: " + err.message;
+  }
+}
+
+// signup
+async function signup(){
+  const first = document.getElementById('signup-first').value.trim();
+  const last = document.getElementById('signup-last').value.trim();
+  const pass = document.getElementById('signup-pass').value;
+
+  if(!first || !last || !pass){
+    document.getElementById('signup-msg').innerText = "אנא מלא את כל השדות";
+    return;
+  }
+
+  const email = makeEmail(first, last);
+  try {
+    document.getElementById('signup-msg').innerText = "יוצר משתמש...";
+    const res = await auth.createUserWithEmailAndPassword(email, pass);
+    // set displayName (optional) so you can identify user
+    const full = first + " " + last;
+    if(res && res.user){
+      await res.user.updateProfile({ displayName: full });
+    }
+    document.getElementById('signup-msg').innerText = "המשתמש נוצר! כעת התחבר.";
+    // switch to login
+    setTimeout(()=> {
+      hideSignup();
+    }, 800);
+  } catch(err){
+    console.error(err);
+    document.getElementById('signup-msg').innerText = "שגיאה: " + err.message;
+  }
+}
+
+// logout
+async function logout(){
+  await auth.signOut();
+}
+
+// handle auth state changes
+auth.onAuthStateChanged(user => {
+  const authWrap = document.getElementById('auth-wrap');
+  const app = document.querySelector('.container');
+  if(user){
+    // hide auth UI, show app
+    authWrap.classList.add('hidden');
+    app.classList.remove('hidden');
+
+    // OPTIONAL: you can display user name somewhere or store it
+    // Example: put the user's name into local UI elements if needed
+    console.log("Logged in:", user.uid, user.email, user.displayName);
+  } else {
+    // show auth UI, hide app
+    authWrap.classList.remove('hidden');
+    app.classList.add('hidden');
+  }
+});
+</script>
+<!-- ----------------- END AUTH LOGIC ----------------- -->
+
 </body>
 </html>
