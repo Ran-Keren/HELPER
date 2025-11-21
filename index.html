@@ -230,7 +230,8 @@ label {
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script> <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
 
 <script>
@@ -248,7 +249,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const storage = firebase.storage();
-const auth = firebase.auth(); // Init Auth
+const auth = firebase.auth();
 
 const defaultSubjects = ["מדעים","ערבית","היסטוריה","מתמטיקה","אנגלית","גאוגרפיה","שפה"];
 const extraCategories = ["מפגש חברתי","ספורט","הצעות לשיפור או בקשות"];
@@ -259,6 +260,7 @@ let selectedFile = null;
 let unsubscribe = null;
 let selectedSocialLocation = null;
 let currentUserDisplayName = "";
+let currentUserId = null; // <-- Added global UID variable
 
 // ---------------- AUTHENTICATION LOGIC ----------------
 
@@ -266,7 +268,7 @@ let currentUserDisplayName = "";
 auth.onAuthStateChanged(user => {
     if (user) {
         // User is logged in
-        // Extract simple name from the fake email
+        currentUserId = user.uid; // <-- Store the UID
         const simpleName = user.email.split('@')[0]; 
         currentUserDisplayName = simpleName;
         
@@ -275,6 +277,7 @@ auth.onAuthStateChanged(user => {
         document.getElementById("view-grades").classList.remove("hidden");
     } else {
         // User is logged out
+        currentUserId = null; // <-- Clear UID on logout
         document.getElementById("view-login").classList.remove("hidden");
         document.getElementById("view-grades").classList.add("hidden");
         // Hide all other views just in case
@@ -287,7 +290,6 @@ auth.onAuthStateChanged(user => {
 
 function getEmailFromName(name) {
     // Create a fake email format for Firebase
-    // Remove spaces to make it a valid email prefix
     const cleanName = name.trim().replace(/\s+/g, '');
     return cleanName + "@school.local"; 
 }
@@ -465,7 +467,8 @@ async function saveSubject(parentCommentId = null) {
         comment: comment,
         description: description,
         imageUrl: imageUrl || "",
-        user: currentUserDisplayName, // Save username specifically
+        user: currentUserDisplayName, 
+        userId: currentUserId, // <-- Saving User ID
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -514,7 +517,7 @@ function loadNotes() {
       };
       div.appendChild(replyBtn);
 
-      // Delete button (Allow if it's the user's post OR implement admin logic later)
+      // Delete button (Only if current user ID matches note creator's ID)
       const deleteBtn = document.createElement("button");
       deleteBtn.innerText = "🗑️ מחק";
       deleteBtn.style.background = "#d32f2f";
@@ -524,7 +527,10 @@ function loadNotes() {
           await doc.ref.delete();
         }
       };
-      div.appendChild(deleteBtn);
+      
+      if (note.userId === currentUserId) { // <-- Conditional check for delete
+          div.appendChild(deleteBtn);
+      }
 
       // Load replies in real-time
       doc.ref.collection("replies").orderBy("timestamp","asc").onSnapshot(replySnap=>{
@@ -546,7 +552,10 @@ function loadNotes() {
               await replyDoc.ref.delete();
             }
           };
-          rDiv.appendChild(delReplyBtn);
+          
+          if (r.userId === currentUserId) { // <-- Conditional check for delete reply
+              rDiv.appendChild(delReplyBtn);
+          }
 
           div.appendChild(rDiv);
         });
@@ -566,6 +575,7 @@ async function saveSubjectReply(parentCommentId, comment, description){
       comment,
       description,
       user: currentUserDisplayName,
+      userId: currentUserId, // <-- Saving User ID
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
 }
@@ -588,6 +598,7 @@ function saveSportEvent(){
       date,
       time,
       creator: currentUserDisplayName,
+      userId: currentUserId, // <-- Saving User ID
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).then(()=>loadSportEvents());
 }
@@ -615,7 +626,10 @@ function loadSportEvents(){
             loadSportEvents();
           }
         };
-        div.appendChild(delBtn);
+        
+        if (e.userId === currentUserId) { // <-- Conditional check for delete
+            div.appendChild(delBtn);
+        }
 
         list.appendChild(div);
       });
@@ -646,6 +660,7 @@ function saveSocialMeeting(){
       date,
       time,
       creator: currentUserDisplayName,
+      userId: currentUserId, // <-- Saving User ID
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).then(()=> loadSocialMeetings());
 }
@@ -672,7 +687,10 @@ function loadSocialMeetings(){
             loadSocialMeetings();
           }
         };
-        div.appendChild(delBtn);
+        
+        if (e.userId === currentUserId) { // <-- Conditional check for delete
+            div.appendChild(delBtn);
+        }
 
         list.appendChild(div);
       });
