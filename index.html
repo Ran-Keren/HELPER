@@ -36,7 +36,7 @@ body {
   justify-content: flex-start;
 }
 .container > :last-child {
-  margin-bottom: 300px; /* adjust as needed */
+  margin-bottom: 300px;
 }
 
 h2 { font-size: 2rem; margin-bottom: 0px; }
@@ -57,7 +57,7 @@ button {
 
 button:hover { background: #1565c0; }
 
-.hidden { display: none; }
+.hidden { display: none !important; }
 
 input, textarea, select {
   width: 95%;
@@ -65,6 +65,8 @@ input, textarea, select {
   margin: 4px 0;
   font-size: 1.4rem;
   box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }
 
 img#preview {
@@ -108,6 +110,23 @@ label {
 #cancelImageBtn { background: #d32f2f; }
 #cancelImageBtn:hover { background: #b71c1c; }
 
+/* Login Specific Styles */
+#view-login {
+    justify-content: center; 
+    align-items: center;
+}
+.login-box {
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+}
+.logout-btn {
+    background: #d32f2f;
+    font-size: 1rem;
+    padding: 5px 10px;
+    margin-bottom: 10px;
+}
+
 @media (max-width: 480px) {
   .container { padding: 5px; }
   h2 { font-size: 1.8rem; }
@@ -122,9 +141,25 @@ label {
 <body>
 <div class="container">
 
-  <div id="view-grades">
-    <!-- Logo only on first page -->
+  <div id="view-login">
     <img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:200px; margin:10px auto; display:block;">
+    <div class="login-box">
+        <h3>התחברות למערכת</h3>
+        <input type="text" id="login-name" placeholder="שם משתמש (באנגלית או עברית)">
+        <input type="password" id="login-pass" placeholder="סיסמה (לפחות 6 תווים)">
+        <button onclick="handleLogin()">כניסה</button>
+        <button onclick="handleRegister()" style="background-color: #4caf50;">הרשמה ראשונית</button>
+        <p id="login-error" style="color:red; font-size:1.2rem;"></p>
+    </div>
+  </div>
+
+  <div id="view-grades" class="hidden">
+    <div style="display:flex; justify-content:space-between; align-items:center; width:95%;">
+        <h4 id="user-greeting"></h4>
+        <button class="logout-btn" onclick="handleLogout()">יציאה</button>
+    </div>
+    
+    <img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:150px; margin:5px auto; display:block;">
 
     <h3>בחר שכבת גיל</h3>
     <button onclick="openGrade('ז')">ז</button>
@@ -195,8 +230,9 @@ label {
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script> <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+
 <script>
 // Firebase config
 const firebaseConfig = {
@@ -208,9 +244,11 @@ const firebaseConfig = {
   appId: "1:710212458048:web:bf0726a7f5cbf25c9b71a5",
   measurementId: "G-T5YL5RC934"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const storage = firebase.storage();
+const auth = firebase.auth(); // Init Auth
 
 const defaultSubjects = ["מדעים","ערבית","היסטוריה","מתמטיקה","אנגלית","גאוגרפיה","שפה"];
 const extraCategories = ["מפגש חברתי","ספורט","הצעות לשיפור או בקשות"];
@@ -220,6 +258,98 @@ let currentSubject = null;
 let selectedFile = null;
 let unsubscribe = null;
 let selectedSocialLocation = null;
+let currentUserDisplayName = "";
+
+// ---------------- AUTHENTICATION LOGIC ----------------
+
+// Auth Listener: Checks if user is logged in
+auth.onAuthStateChanged(user => {
+    if (user) {
+        // User is logged in
+        // Extract simple name from the fake email
+        const simpleName = user.email.split('@')[0]; 
+        currentUserDisplayName = simpleName;
+        
+        document.getElementById("user-greeting").innerText = "שלום, " + simpleName;
+        document.getElementById("view-login").classList.add("hidden");
+        document.getElementById("view-grades").classList.remove("hidden");
+    } else {
+        // User is logged out
+        document.getElementById("view-login").classList.remove("hidden");
+        document.getElementById("view-grades").classList.add("hidden");
+        // Hide all other views just in case
+        document.getElementById("view-subjects").classList.add("hidden");
+        document.getElementById("view-form").classList.add("hidden");
+        document.getElementById("view-sport-events").classList.add("hidden");
+        document.getElementById("view-social-meeting").classList.add("hidden");
+    }
+});
+
+function getEmailFromName(name) {
+    // Create a fake email format for Firebase
+    // Remove spaces to make it a valid email prefix
+    const cleanName = name.trim().replace(/\s+/g, '');
+    return cleanName + "@school.local"; 
+}
+
+function handleRegister() {
+    const name = document.getElementById("login-name").value;
+    const pass = document.getElementById("login-pass").value;
+    const errorMsg = document.getElementById("login-error");
+
+    if(!name || !pass) {
+        errorMsg.innerText = "אנא מלא שם וסיסמה";
+        return;
+    }
+    if(pass.length < 6) {
+        errorMsg.innerText = "הסיסמה חייבת להיות לפחות 6 תווים";
+        return;
+    }
+
+    const email = getEmailFromName(name);
+
+    auth.createUserWithEmailAndPassword(email, pass)
+        .then((userCredential) => {
+            errorMsg.innerText = "";
+            alert("נרשמת בהצלחה!");
+        })
+        .catch((error) => {
+            console.error(error);
+            if(error.code === "auth/email-already-in-use") {
+                errorMsg.innerText = "שם המשתמש תפוס, נסה שם אחר או התחבר";
+            } else {
+                errorMsg.innerText = "שגיאה: " + error.message;
+            }
+        });
+}
+
+function handleLogin() {
+    const name = document.getElementById("login-name").value;
+    const pass = document.getElementById("login-pass").value;
+    const errorMsg = document.getElementById("login-error");
+
+    if(!name || !pass) {
+        errorMsg.innerText = "אנא מלא שם וסיסמה";
+        return;
+    }
+
+    const email = getEmailFromName(name);
+
+    auth.signInWithEmailAndPassword(email, pass)
+        .then((userCredential) => {
+             errorMsg.innerText = "";
+        })
+        .catch((error) => {
+            console.error(error);
+            errorMsg.innerText = "שם משתמש או סיסמה שגויים";
+        });
+}
+
+function handleLogout() {
+    auth.signOut();
+}
+
+// ---------------- APP LOGIC ----------------
 
 // Open grade
 function openGrade(grade) {
@@ -299,7 +429,10 @@ function openForm(subject) {
   document.getElementById("view-subjects").classList.add("hidden");
   document.getElementById("view-form").classList.remove("hidden");
   document.getElementById("form-title").innerText = "הוספת הערה ל: " + subject;
-  document.getElementById("comment").value = "";
+  
+  // Auto-fill user name
+  document.getElementById("comment").value = currentUserDisplayName;
+  
   document.getElementById("description").value = "";
   cancelImage();
   loadNotes();
@@ -307,9 +440,13 @@ function openForm(subject) {
 
 // Save comment
 async function saveSubject(parentCommentId = null) {
-  const comment = document.getElementById("comment").value.trim();
+  let comment = document.getElementById("comment").value.trim();
   const description = document.getElementById("description").value.trim();
-  if(!comment || !description){ alert("אנא מלא את כל השדות"); return; }
+  
+  // Fallback if empty
+  if(!comment) comment = currentUserDisplayName;
+
+  if(!description){ alert("אנא כתוב תיאור"); return; }
 
   try {
     let imageUrl = "";
@@ -321,28 +458,26 @@ async function saveSubject(parentCommentId = null) {
     }
 
     const subjectRef = db.collection("grades").doc(currentGrade)
-                         .collection("subjects").doc(currentSubject);
+                          .collection("subjects").doc(currentSubject);
     await subjectRef.set({ createdAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+
+    const dataPayload = {
+        comment: comment,
+        description: description,
+        imageUrl: imageUrl || "",
+        user: currentUserDisplayName, // Save username specifically
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    };
 
     if(parentCommentId){
       await subjectRef.collection("comments").doc(parentCommentId)
-        .collection("replies").add({
-          comment,
-          description,
-          imageUrl: imageUrl || "",
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        .collection("replies").add(dataPayload);
     } else {
-      await subjectRef.collection("comments").add({
-        comment,
-        description,
-        imageUrl: imageUrl || "",
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      await subjectRef.collection("comments").add(dataPayload);
     }
 
     alert("נשמר בהצלחה!");
-    document.getElementById("comment").value = "";
+    // Don't clear name so they can post again easily
     document.getElementById("description").value = "";
     cancelImage();
   } catch(err){
@@ -372,15 +507,14 @@ function loadNotes() {
       const replyBtn = document.createElement("button");
       replyBtn.innerText = "💬 השב";
       replyBtn.onclick = ()=> {
-        const replyComment = prompt("הזן את השם שלך:");
-        const replyDesc = prompt("כתוב את ההודעה שלך:");
-        if(replyComment && replyDesc){
-          saveSubjectReply(doc.id, replyComment, replyDesc);
+        const replyDesc = prompt("כתוב תגובה:");
+        if(replyDesc){
+          saveSubjectReply(doc.id, currentUserDisplayName, replyDesc);
         }
       };
       div.appendChild(replyBtn);
 
-      // Delete button
+      // Delete button (Allow if it's the user's post OR implement admin logic later)
       const deleteBtn = document.createElement("button");
       deleteBtn.innerText = "🗑️ מחק";
       deleteBtn.style.background = "#d32f2f";
@@ -401,9 +535,8 @@ function loadNotes() {
           const rDiv = document.createElement("div");
           rDiv.className="reply";
           rDiv.innerHTML=`<strong>${r.comment}</strong><p>${r.description}</p>`+
-                         (r.imageUrl ? `<img src="${r.imageUrl}">` : "");
+                          (r.imageUrl ? `<img src="${r.imageUrl}">` : "");
 
-          // Delete reply
           const delReplyBtn = document.createElement("button");
           delReplyBtn.innerText = "🗑️ מחק";
           delReplyBtn.style.background = "#d32f2f";
@@ -427,11 +560,12 @@ function loadNotes() {
 // Save reply
 async function saveSubjectReply(parentCommentId, comment, description){
   const subjectRef = db.collection("grades").doc(currentGrade)
-                       .collection("subjects").doc(currentSubject);
+                        .collection("subjects").doc(currentSubject);
   await subjectRef.collection("comments").doc(parentCommentId)
     .collection("replies").add({
       comment,
       description,
+      user: currentUserDisplayName,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
 }
@@ -453,6 +587,7 @@ function saveSportEvent(){
       name: eventName,
       date,
       time,
+      creator: currentUserDisplayName,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).then(()=>loadSportEvents());
 }
@@ -467,9 +602,9 @@ function loadSportEvents(){
         const e = doc.data();
         const div = document.createElement("div");
         div.className="event";
-        div.innerText = `${e.name} - ${e.date} ${e.time}`;
+        // Added creator name to display
+        div.innerHTML = `<strong>${e.name}</strong><br>${e.date} ${e.time}<br><small>נקבע ע"י: ${e.creator || '?'}</small>`;
 
-        // Delete button
         const delBtn = document.createElement("button");
         delBtn.innerText = "🗑️ מחק";
         delBtn.style.background = "#d32f2f";
@@ -510,6 +645,7 @@ function saveSocialMeeting(){
       location: selectedSocialLocation,
       date,
       time,
+      creator: currentUserDisplayName,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).then(()=> loadSocialMeetings());
 }
@@ -524,9 +660,8 @@ function loadSocialMeetings(){
         const e = doc.data();
         const div = document.createElement("div");
         div.className="social";
-        div.innerText = `${e.location} - ${e.date} ${e.time}`;
+        div.innerHTML = `<strong>${e.location}</strong><br>${e.date} ${e.time}<br><small>נקבע ע"י: ${e.creator || '?'}</small>`;
 
-        // Delete button
         const delBtn = document.createElement("button");
         delBtn.innerText = "🗑️ מחק";
         delBtn.style.background = "#d32f2f";
