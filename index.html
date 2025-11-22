@@ -58,6 +58,8 @@ button {
   cursor: pointer;
   font-size: 1.4rem;
   transition: background 0.3s;
+  /* Added for positioning the badge */
+  position: relative; 
 }
 
 button:hover { background: #1565c0; }
@@ -146,6 +148,24 @@ label {
     margin: 0;
 }
 
+/* --- NEW MESSAGE INDICATOR STYLES --- */
+.new-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: red;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+    border: 2px solid white;
+}
+
+
 @media (max-width: 480px) {
   .container { padding: 5px; }
   h2 { font-size: 1.8rem; }
@@ -181,9 +201,9 @@ label {
     <img src="https://i.imgur.com/rEEphAR.jpeg" alt="" style="max-width:150px; margin:5px auto; display:block;">
 
     <h3>בחר שכבת גיל</h3>
-    <button onclick="openGrade('ז')">ז</button>
-    <button onclick="openGrade('ח')">ח</button>
-    <button onclick="openGrade('ט')">ט</button>
+    <button id="grade-z-btn" onclick="openGrade('ז')">ז</button>
+    <button id="grade-h-btn" onclick="openGrade('ח')">ח</button>
+    <button id="grade-t-btn" onclick="openGrade('ט')">ט</button>
 
     <button class="logout-btn" onclick="handleLogout()">יציאה</button>
   </div>
@@ -278,6 +298,7 @@ const ADMIN_PASS = "admin";
 
 const defaultSubjects = ["מדעים","ערבית","היסטוריה","מתמטיקה","אנגלית","גאוגרפיה","שפה"];
 const extraCategories = ["מפגש חברתי","ספורט","הצעות לשיפור או בקשות"];
+const allCategories = [...defaultSubjects, ...extraCategories];
 
 let currentGrade = null;
 let currentSubject = null;
@@ -337,7 +358,12 @@ auth.onAuthStateChanged(user => {
         
         // Update the greeting with the full name (or fallback)
         updateGreeting(greetingName, isAdmin);
-
+        
+        // Check for new messages on the grade buttons when the user logs in/page loads
+        checkNewContentStatus('ז');
+        checkNewContentStatus('ח');
+        checkNewContentStatus('ט');
+        
         document.getElementById("view-login").classList.add("hidden");
         document.getElementById("view-grades").classList.remove("hidden");
     } else {
@@ -347,7 +373,7 @@ auth.onAuthStateChanged(user => {
         currentUserFullName = ""; 
         currentUserDisplayName = "";
         
-        // Note: localStorage.removeItem('fullUserName') is called in handleLogout
+        localStorage.removeItem('fullUserName'); 
         
         document.getElementById("view-login").classList.remove("hidden");
         document.getElementById("view-grades").classList.add("hidden");
@@ -382,9 +408,14 @@ function handleRegister() {
 
     auth.createUserWithEmailAndPassword(email, pass)
         .then((userCredential) => {
-            currentUserFullName = name; // Store Full Name
+            currentUserFullName = name; 
             localStorage.setItem('fullUserName', name); // PERSIST FULL NAME
-            updateGreeting(name, false); // Update greeting explicitly
+            // Set initial login time for fresh new message checks
+            localStorage.setItem(`lastViewed_ז`, Date.now());
+            localStorage.setItem(`lastViewed_ח`, Date.now());
+            localStorage.setItem(`lastViewed_ט`, Date.now());
+            
+            updateGreeting(name, false); 
             errorMsg.innerText = "";
             alert("נרשמת בהצלחה!");
         })
@@ -414,7 +445,7 @@ function handleLogin() {
             .then(() => {
                 currentUserFullName = name; 
                 localStorage.setItem('fullUserName', name); // PERSIST FULL NAME
-                updateGreeting(name, true); // Update greeting explicitly for admin
+                updateGreeting(name, true); 
             })
             .catch((error) => {
                  errorMsg.innerText = "שם משתמש או סיסמה שגויים";
@@ -429,7 +460,7 @@ function handleLogin() {
         .then((userCredential) => {
              currentUserFullName = name; 
              localStorage.setItem('fullUserName', name); // PERSIST FULL NAME
-             updateGreeting(name, false); // Update greeting explicitly for regular user
+             updateGreeting(name, false); 
              errorMsg.innerText = "";
         })
         .catch((error) => {
@@ -439,8 +470,87 @@ function handleLogin() {
 }
 
 function handleLogout() {
-    localStorage.removeItem('fullUserName'); // CLEAR FULL NAME
+    localStorage.removeItem('fullUserName'); 
     auth.signOut();
+}
+
+// ---------------- NEW CONTENT INDICATION LOGIC (FIXED) ----------------
+
+// Helper to remove any existing badge
+function removeBadge(element) {
+    const badge = element.querySelector('.new-badge');
+    if (badge) {
+        badge.remove();
+    }
+}
+
+// Function to check content status for a specific grade
+function checkNewContentStatus(grade) {
+    // Ensure lastViewed is parsed as an integer, defaulting to 0 if missing
+    const lastViewed = parseInt(localStorage.getItem(`lastViewed_${grade}`) || 0);
+    const gradeButton = document.getElementById(`grade-${grade.toLowerCase()}-btn`);
+
+    if (!gradeButton || !currentUserId) return;
+
+    let hasNewContent = false;
+    let collectionsToCheck = [];
+
+    // Collections: comments (regular subjects)
+    defaultSubjects.forEach(sub => {
+        collectionsToCheck.push(db.collection("grades").doc(grade).collection("subjects").doc(sub).collection("comments"));
+    });
+    
+    // Collections: sport_events and social_meetings (extra categories)
+    collectionsToCheck.push(db.collection("grades").doc(grade).collection("sport_events"));
+    collectionsToCheck.push(db.collection("grades").doc(grade).collection("social_meetings"));
+    collectionsToCheck.push(db.collection("grades").doc(grade).collection("subjects").doc("הצעות לשיפור או בקשות").collection("comments"));
+
+    removeBadge(gradeButton); 
+
+    const checkCollection = (index) => {
+        if (hasNewContent || index >= collectionsToCheck.length) {
+            // Finished checking all collections or found new content
+            if (hasNewContent) {
+                // Add new badge if new content found
+                gradeButton.innerHTML += '<span class="new-badge">!</span>';
+            }
+            return;
+        }
+
+        collectionsToCheck[index].orderBy("timestamp", "desc").limit(1).get()
+            .then(snapshot => {
+                if (!snapshot.empty) {
+                    const latestTimestampObj = snapshot.docs[0].data().timestamp;
+                    
+                    // CRITICAL FIX: Ensure the timestamp object exists and convert to milliseconds
+                    if (latestTimestampObj && typeof latestTimestampObj.toMillis === 'function') {
+                        const latestTimestamp = latestTimestampObj.toMillis();
+                        if (latestTimestamp > lastViewed) {
+                            hasNewContent = true;
+                        }
+                    }
+                }
+                // Continue to the next collection
+                checkCollection(index + 1);
+            })
+            .catch(error => {
+                console.error(`Error checking collection ${index}:`, error.message);
+                // If you see a Firestore error here about "missing index", you must manually create it in the Firebase console.
+                checkCollection(index + 1);
+            });
+    };
+
+    // Start checking
+    checkCollection(0);
+}
+
+// Function to set the last viewed timestamp for a grade (when entering a grade)
+function setGradeLastViewed(grade) {
+    localStorage.setItem(`lastViewed_${grade}`, Date.now());
+    // Re-check status of all grades after setting one's last viewed time
+    checkNewContentStatus('ז');
+    checkNewContentStatus('ח');
+    checkNewContentStatus('ט');
 }
 
 // ---------------- APP LOGIC ----------------
@@ -448,6 +558,7 @@ function handleLogout() {
 // Open grade
 function openGrade(grade) {
   currentGrade = grade;
+  setGradeLastViewed(grade); // Mark grade as viewed NOW
   document.getElementById("view-grades").classList.add("hidden");
   document.getElementById("view-subjects").classList.remove("hidden");
   document.getElementById("subject-title").innerText = "מקצועות בשכבת " + grade;
@@ -480,6 +591,11 @@ function backToGrades() {
   document.getElementById("view-sport-events").classList.add("hidden");
   document.getElementById("view-social-meeting").classList.add("hidden");
   document.getElementById("view-grades").classList.remove("hidden");
+  
+  // Refresh new content badges when returning to grades
+  checkNewContentStatus('ז');
+  checkNewContentStatus('ח');
+  checkNewContentStatus('ט');
 }
 
 function backToSubjects() {
@@ -534,7 +650,6 @@ function openForm(subject) {
 
 // Save comment
 async function saveSubject(parentCommentId = null) {
-  // REMOVED reading from input: let comment = document.getElementById("comment").value.trim();
   const description = document.getElementById("description").value.trim();
   
   // ENFORCED NAME: The name for the comment/user fields is ALWAYS the logged-in user's full name.
@@ -572,9 +687,12 @@ async function saveSubject(parentCommentId = null) {
     }
 
     alert("נשמר בהצלחה!");
-    // Don't clear name so they can post again easily
     document.getElementById("description").value = "";
     cancelImage();
+    
+    // After saving, mark the grade as viewed to clear the badge, as the user is actively viewing
+    setGradeLastViewed(currentGrade); 
+
   } catch(err){
     console.error("Upload error:", err);
     alert("שגיאה בשמירה: "+err.message);
@@ -672,6 +790,9 @@ async function saveSubjectReply(parentCommentId, description){
       userId: currentUserId,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
+    
+    // After saving, mark the grade as viewed
+    setGradeLastViewed(currentGrade); 
 }
 
 // SPORT EVENTS
@@ -694,7 +815,11 @@ function saveSportEvent(){
       creator: currentUserFullName, // ENFORCED
       userId: currentUserId,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(()=>loadSportEvents());
+    }).then(()=> {
+        loadSportEvents();
+        // After saving, mark the grade as viewed
+        setGradeLastViewed(currentGrade); 
+    });
 }
 
 function loadSportEvents(){
@@ -756,7 +881,11 @@ function saveSocialMeeting(){
       creator: currentUserFullName, // ENFORCED
       userId: currentUserId,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(()=> loadSocialMeetings());
+    }).then(()=> {
+        loadSocialMeetings();
+        // After saving, mark the grade as viewed
+        setGradeLastViewed(currentGrade); 
+    });
 }
 
 function loadSocialMeetings(){
