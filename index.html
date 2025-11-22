@@ -269,8 +269,6 @@ const auth = firebase.auth();
 // --- ADMIN CREDENTIALS ---
 const ADMIN_NAME = "admin";
 const ADMIN_PASS = "admin";
-// Since Firebase Auth requires 6 characters for registration, 
-// the actual admin user must be created in the Firebase console with email: admin@school.local and password: admin
 
 const defaultSubjects = ["מדעים","ערבית","היסטוריה","מתמטיקה","אנגלית","גאוגרפיה","שפה"];
 const extraCategories = ["מפגש חברתי","ספורט","הצעות לשיפור או בקשות"];
@@ -280,7 +278,10 @@ let currentSubject = null;
 let selectedFile = null;
 let unsubscribe = null;
 let selectedSocialLocation = null;
-let currentUserDisplayName = "";
+
+// --- GLOBAL VARIABLES ---
+let currentUserDisplayName = ""; 
+let currentUserFullName = "";  
 let currentUserId = null;
 let isAdmin = false; 
 
@@ -291,27 +292,57 @@ function checkAdminCredentials(name, pass) {
     return name === ADMIN_NAME && pass === ADMIN_PASS;
 }
 
+// Helper function to get the Firebase-compatible email (no spaces)
+function getEmailFromName(name) {
+    const cleanName = name.trim().replace(/\s+/g, ''); // Strips all spaces for email
+    return cleanName + "@school.local"; 
+}
+
+// Function to update the greeting based on the current full name and admin status
+function updateGreeting(name, isAdmin) {
+    const greetingElement = document.getElementById("user-greeting");
+    let greeting = `שלום, ${name}`; 
+    
+    if(isAdmin) {
+         greeting = `שלום, ${name} (מנהל) 👑`; 
+    }
+    greetingElement.innerText = greeting;
+}
+
 // Auth Listener: Checks if user is logged in
 auth.onAuthStateChanged(user => {
     if (user) {
         // User is logged in
         currentUserId = user.uid;
+        
+        // The email prefix is the stripped name (used for admin check)
         const simpleName = user.email.split('@')[0]; 
         currentUserDisplayName = simpleName;
         
         // Determine admin status based on the logged-in email prefix
         isAdmin = (simpleName === ADMIN_NAME); 
 
-        let greeting = "שלום, " + simpleName;
-        if(isAdmin) greeting = "שלום, " + simpleName + " (מנהל) 👑"; 
+        // --- FETCH FULL NAME FROM LOCAL STORAGE ---
+        const storedFullName = localStorage.getItem('fullUserName');
+        
+        // Use the stored name if available (for page refresh), otherwise use the stripped name
+        let greetingName = storedFullName || simpleName; 
+        currentUserFullName = greetingName; // Set the global variable
+        
+        // Update the greeting with the full name (or fallback)
+        updateGreeting(greetingName, isAdmin);
 
-        document.getElementById("user-greeting").innerText = greeting;
         document.getElementById("view-login").classList.add("hidden");
         document.getElementById("view-grades").classList.remove("hidden");
     } else {
         // User is logged out
         currentUserId = null;
         isAdmin = false; 
+        currentUserFullName = ""; 
+        currentUserDisplayName = "";
+        
+        // Note: localStorage.removeItem('fullUserName') is called in handleLogout
+        
         document.getElementById("view-login").classList.remove("hidden");
         document.getElementById("view-grades").classList.add("hidden");
         // Hide all other views just in case
@@ -322,14 +353,9 @@ auth.onAuthStateChanged(user => {
     }
 });
 
-function getEmailFromName(name) {
-    // Create a fake email format for Firebase
-    const cleanName = name.trim().replace(/\s+/g, '');
-    return cleanName + "@school.local"; 
-}
 
 function handleRegister() {
-    const name = document.getElementById("login-name").value;
+    const name = document.getElementById("login-name").value.trim();
     const pass = document.getElementById("login-pass").value;
     const errorMsg = document.getElementById("login-error");
 
@@ -341,16 +367,18 @@ function handleRegister() {
         errorMsg.innerText = "הסיסמה חייבת להיות לפחות 6 תווים";
         return;
     }
-    // Prevent registering with the reserved admin name
     if (name.toLowerCase() === ADMIN_NAME.toLowerCase()) {
         errorMsg.innerText = "שם המשתמש 'admin' שמור למנהל. אנא בחר שם אחר.";
         return;
     }
 
-    const email = getEmailFromName(name);
+    const email = getEmailFromName(name); 
 
     auth.createUserWithEmailAndPassword(email, pass)
         .then((userCredential) => {
+            currentUserFullName = name; // Store Full Name
+            localStorage.setItem('fullUserName', name); // <-- PERSIST FULL NAME
+            updateGreeting(name, false); // Update greeting explicitly
             errorMsg.innerText = "";
             alert("נרשמת בהצלחה!");
         })
@@ -365,7 +393,7 @@ function handleRegister() {
 }
 
 function handleLogin() {
-    const name = document.getElementById("login-name").value;
+    const name = document.getElementById("login-name").value.trim();
     const pass = document.getElementById("login-pass").value;
     const errorMsg = document.getElementById("login-error");
 
@@ -376,10 +404,14 @@ function handleLogin() {
     
     // Check for hardcoded admin login
     if (checkAdminCredentials(name, pass)) {
-        // Attempt to sign in with the Firebase admin account
         auth.signInWithEmailAndPassword(getEmailFromName(ADMIN_NAME), pass)
+            .then(() => {
+                currentUserFullName = name; 
+                localStorage.setItem('fullUserName', name); // <-- PERSIST FULL NAME
+                updateGreeting(name, true); // Update greeting explicitly for admin
+            })
             .catch((error) => {
-                 errorMsg.innerText = "שגיאה: חשבון מנהל לא קיים ב-Firebase. יש ליצור אותו (admin/admin).";
+                 errorMsg.innerText = "שם משתמש או סיסמה שגויים";
             });
         return;
     }
@@ -389,6 +421,9 @@ function handleLogin() {
 
     auth.signInWithEmailAndPassword(email, pass)
         .then((userCredential) => {
+             currentUserFullName = name; 
+             localStorage.setItem('fullUserName', name); // <-- PERSIST FULL NAME
+             updateGreeting(name, false); // Update greeting explicitly for regular user
              errorMsg.innerText = "";
         })
         .catch((error) => {
@@ -398,6 +433,7 @@ function handleLogin() {
 }
 
 function handleLogout() {
+    localStorage.removeItem('fullUserName'); // <-- CLEAR FULL NAME
     auth.signOut();
 }
 
@@ -482,8 +518,8 @@ function openForm(subject) {
   document.getElementById("view-form").classList.remove("hidden");
   document.getElementById("form-title").innerText = "הוספת הערה ל: " + subject;
   
-  // Auto-fill user name
-  document.getElementById("comment").value = currentUserDisplayName;
+  // Auto-fill user name with the FULL name (spaces included)
+  document.getElementById("comment").value = currentUserFullName;
   
   document.getElementById("description").value = "";
   cancelImage();
@@ -495,8 +531,8 @@ async function saveSubject(parentCommentId = null) {
   let comment = document.getElementById("comment").value.trim();
   const description = document.getElementById("description").value.trim();
   
-  // Fallback if empty
-  if(!comment) comment = currentUserDisplayName;
+  // Use the full name for the comment field if it wasn't entered manually
+  if(!comment) comment = currentUserFullName;
 
   if(!description){ alert("אנא כתוב תיאור"); return; }
 
@@ -517,7 +553,7 @@ async function saveSubject(parentCommentId = null) {
         comment: comment,
         description: description,
         imageUrl: imageUrl || "",
-        user: currentUserDisplayName, 
+        user: currentUserFullName, // Saving Full Name
         userId: currentUserId,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -562,7 +598,7 @@ function loadNotes() {
       replyBtn.onclick = ()=> {
         const replyDesc = prompt("כתוב תגובה:");
         if(replyDesc){
-          saveSubjectReply(doc.id, currentUserDisplayName, replyDesc);
+          saveSubjectReply(doc.id, replyDesc); 
         }
       };
       div.appendChild(replyBtn);
@@ -619,14 +655,14 @@ function loadNotes() {
 }
 
 // Save reply
-async function saveSubjectReply(parentCommentId, comment, description){
+async function saveSubjectReply(parentCommentId, description){ 
   const subjectRef = db.collection("grades").doc(currentGrade)
                         .collection("subjects").doc(currentSubject);
   await subjectRef.collection("comments").doc(parentCommentId)
     .collection("replies").add({
-      comment,
+      comment: currentUserFullName, // Saving Full Name
       description,
-      user: currentUserDisplayName,
+      user: currentUserFullName, // Saving Full Name
       userId: currentUserId,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -649,7 +685,7 @@ function saveSportEvent(){
       name: eventName,
       date,
       time,
-      creator: currentUserDisplayName,
+      creator: currentUserFullName, // Saving Full Name
       userId: currentUserId,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).then(()=>loadSportEvents());
@@ -665,7 +701,6 @@ function loadSportEvents(){
         const e = doc.data();
         const div = document.createElement("div");
         div.className="event";
-        // Added creator name to display
         div.innerHTML = `<strong>${e.name}</strong><br>${e.date} ${e.time}<br><small>נקבע ע"י: ${e.creator || '?'}</small>`;
 
         const delBtn = document.createElement("button");
@@ -712,7 +747,7 @@ function saveSocialMeeting(){
       location: selectedSocialLocation,
       date,
       time,
-      creator: currentUserDisplayName,
+      creator: currentUserFullName, // Saving Full Name
       userId: currentUserId,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).then(()=> loadSocialMeetings());
