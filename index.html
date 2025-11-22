@@ -73,6 +73,12 @@ input, textarea, select {
   border: 1px solid #ccc;
   border-radius: 4px;
 }
+/* Style for the disabled name field */
+input[readonly] {
+    background-color: #f0f0f0;
+    color: #666;
+    cursor: not-allowed;
+}
 
 img#preview {
   max-width: 150px;
@@ -192,7 +198,7 @@ label {
 
   <div id="view-form" class="hidden">
     <h3 id="form-title"></h3>
-    <input type="text" id="comment" placeholder="שם התלמיד"><br>
+    <input type="text" id="comment" placeholder="שם המשתמש שלך (לא ניתן לשינוי)" readonly><br>
     <textarea id="description" placeholder="תיאור"></textarea><br>
     <input type="file" id="imageInput"><br>
     <button id="cancelImageBtn" class="hidden" onclick="cancelImage()">❌ בטל תמונה</button><br>
@@ -377,7 +383,7 @@ function handleRegister() {
     auth.createUserWithEmailAndPassword(email, pass)
         .then((userCredential) => {
             currentUserFullName = name; // Store Full Name
-            localStorage.setItem('fullUserName', name); // <-- PERSIST FULL NAME
+            localStorage.setItem('fullUserName', name); // PERSIST FULL NAME
             updateGreeting(name, false); // Update greeting explicitly
             errorMsg.innerText = "";
             alert("נרשמת בהצלחה!");
@@ -407,7 +413,7 @@ function handleLogin() {
         auth.signInWithEmailAndPassword(getEmailFromName(ADMIN_NAME), pass)
             .then(() => {
                 currentUserFullName = name; 
-                localStorage.setItem('fullUserName', name); // <-- PERSIST FULL NAME
+                localStorage.setItem('fullUserName', name); // PERSIST FULL NAME
                 updateGreeting(name, true); // Update greeting explicitly for admin
             })
             .catch((error) => {
@@ -422,7 +428,7 @@ function handleLogin() {
     auth.signInWithEmailAndPassword(email, pass)
         .then((userCredential) => {
              currentUserFullName = name; 
-             localStorage.setItem('fullUserName', name); // <-- PERSIST FULL NAME
+             localStorage.setItem('fullUserName', name); // PERSIST FULL NAME
              updateGreeting(name, false); // Update greeting explicitly for regular user
              errorMsg.innerText = "";
         })
@@ -433,7 +439,7 @@ function handleLogin() {
 }
 
 function handleLogout() {
-    localStorage.removeItem('fullUserName'); // <-- CLEAR FULL NAME
+    localStorage.removeItem('fullUserName'); // CLEAR FULL NAME
     auth.signOut();
 }
 
@@ -518,8 +524,8 @@ function openForm(subject) {
   document.getElementById("view-form").classList.remove("hidden");
   document.getElementById("form-title").innerText = "הוספת הערה ל: " + subject;
   
-  // Auto-fill user name with the FULL name (spaces included)
-  document.getElementById("comment").value = currentUserFullName;
+  // REQUIRED: Auto-fill user name with the FULL name (spaces included)
+  document.getElementById("comment").value = currentUserFullName; 
   
   document.getElementById("description").value = "";
   cancelImage();
@@ -528,12 +534,12 @@ function openForm(subject) {
 
 // Save comment
 async function saveSubject(parentCommentId = null) {
-  let comment = document.getElementById("comment").value.trim();
+  // REMOVED reading from input: let comment = document.getElementById("comment").value.trim();
   const description = document.getElementById("description").value.trim();
   
-  // Use the full name for the comment field if it wasn't entered manually
-  if(!comment) comment = currentUserFullName;
-
+  // ENFORCED NAME: The name for the comment/user fields is ALWAYS the logged-in user's full name.
+  const commentUserName = currentUserFullName;
+  
   if(!description){ alert("אנא כתוב תיאור"); return; }
 
   try {
@@ -550,10 +556,10 @@ async function saveSubject(parentCommentId = null) {
     await subjectRef.set({ createdAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
 
     const dataPayload = {
-        comment: comment,
+        comment: commentUserName, // ENFORCED
         description: description,
         imageUrl: imageUrl || "",
-        user: currentUserFullName, // Saving Full Name
+        user: currentUserFullName, // ENFORCED
         userId: currentUserId,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -660,9 +666,9 @@ async function saveSubjectReply(parentCommentId, description){
                         .collection("subjects").doc(currentSubject);
   await subjectRef.collection("comments").doc(parentCommentId)
     .collection("replies").add({
-      comment: currentUserFullName, // Saving Full Name
+      comment: currentUserFullName, // ENFORCED
       description,
-      user: currentUserFullName, // Saving Full Name
+      user: currentUserFullName, // ENFORCED
       userId: currentUserId,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -685,7 +691,7 @@ function saveSportEvent(){
       name: eventName,
       date,
       time,
-      creator: currentUserFullName, // Saving Full Name
+      creator: currentUserFullName, // ENFORCED
       userId: currentUserId,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).then(()=>loadSportEvents());
@@ -747,7 +753,7 @@ function saveSocialMeeting(){
       location: selectedSocialLocation,
       date,
       time,
-      creator: currentUserFullName, // Saving Full Name
+      creator: currentUserFullName, // ENFORCED
       userId: currentUserId,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).then(()=> loadSocialMeetings());
