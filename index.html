@@ -40,7 +40,8 @@ body {
 #view-subjects > :last-child,
 #view-form > :last-child,
 #view-sport-events > :last-child,
-#view-social-meeting > :last-child {
+#view-social-meeting > :last-child,
+#view-lost-found > :last-child {
   margin-bottom: 70px; /* Give space above the fixed button if necessary */
 }
 
@@ -82,7 +83,7 @@ input[readonly] {
     cursor: not-allowed;
 }
 
-img#preview {
+img#preview, img#lf-preview {
   max-width: 150px;
   max-height: 150px;
   margin: 8px 0;
@@ -93,7 +94,7 @@ img#preview {
 
 img { max-width: 100%; margin: 8px 0; height: auto; }
 
-.note, .event, .social {
+.note, .event, .social, .lf-item {
   border: 1px solid #ddd;
   padding: 8px;
   margin: 6px 0;
@@ -112,6 +113,18 @@ img { max-width: 100%; margin: 8px 0; height: auto; }
   background: #f1f1f1;
 }
 
+/* Specific style for event comments to look distinct */
+.event-comments-section {
+    background: #f9f9f9;
+    border-top: 1px solid #eee;
+    margin-top: 10px;
+    padding: 5px;
+    display: none; /* Hidden by default */
+}
+.event-comments-section.open {
+    display: block;
+}
+
 label {
   font-weight: bold;
   margin-top: 6px;
@@ -120,8 +133,8 @@ label {
   font-size: 1.2rem;
 }
 
-#cancelImageBtn { background: #d32f2f; }
-#cancelImageBtn:hover { background: #b71c1c; }
+#cancelImageBtn, #cancelLfImageBtn { background: #d32f2f; }
+#cancelImageBtn:hover, #cancelLfImageBtn:hover { background: #b71c1c; }
 
 /* Login Specific Styles */
 #view-login {
@@ -165,6 +178,16 @@ label {
     border: 2px solid white;
 }
 
+/* Attendee List Style */
+.attendees-list {
+    font-size: 1rem;
+    color: #555;
+    margin-top: 5px;
+    background: #e3f2fd;
+    padding: 4px;
+    border-radius: 4px;
+}
+
 
 @media (max-width: 480px) {
   .container { padding: 5px; }
@@ -174,7 +197,7 @@ label {
   /* Ensure grade buttons and other buttons don't conflict with fixed logout button */
   button:not(.logout-btn) { width: 90%; padding: 6px; font-size: 1.2rem; margin: 3px 0; }
   input, textarea, select { padding: 6px; font-size: 1.2rem; }
-  .note, .event, .social { font-size: 1.2rem; padding: 6px; }
+  .note, .event, .social, .lf-item { font-size: 1.2rem; padding: 6px; }
 }
 </style>
 </head>
@@ -205,7 +228,27 @@ label {
     <button id="grade-h-btn" onclick="openGrade('ח')">ח</button>
     <button id="grade-t-btn" onclick="openGrade('ט')">ט</button>
 
+    <hr style="width:80%; margin: 20px auto;">
+    <button onclick="openLostAndFound()" style="background-color: #ff9800;">🔎 אבדות ומציאות (כללי)</button>
+
     <button class="logout-btn" onclick="handleLogout()">יציאה</button>
+  </div>
+
+  <div id="view-lost-found" class="hidden">
+    <h3>🔎 אבדות ומציאות - כללי</h3>
+    <p style="font-size: 0.9rem; color: #666;">רשימה משותפת לכל השכבות</p>
+    
+    <input type="text" id="lf-comment" placeholder="שם המשתמש (אוטומטי)" readonly><br>
+    <textarea id="lf-description" placeholder="מה אבד/נמצא? תיאור הפריט..."></textarea><br>
+    <input type="file" id="lfImageInput"><br>
+    <button id="cancelLfImageBtn" class="hidden" onclick="cancelLfImage()">❌ בטל תמונה</button><br>
+    <img id="lf-preview" class="hidden"><br>
+    <button onclick="saveLostItem()">💾 פרסם מודעה</button>
+    
+    <button onclick="backToGrades()">⬅ חזרה למסך ראשי</button>
+    
+    <h3>📌 מודעות אחרונות</h3>
+    <div id="lf-list"></div>
   </div>
 
   <div id="view-subjects" class="hidden">
@@ -249,7 +292,6 @@ label {
   <div id="view-social-meeting" class="hidden">
     <h3>מפגש חברתי</h3>
     <div id="social-locations">
-      <button onclick="selectSocialLocation('חדר אוכל')">חדר אוכל</button>
       <button onclick="selectSocialLocation('חצר')">חצר</button>
       <button onclick="selectSocialLocation('ספריה')">ספריה</button>
       <button onclick="selectSocialLocation('אולם ספורט')">אולם ספורט</button>
@@ -298,12 +340,13 @@ const ADMIN_PASS = "admin";
 
 const defaultSubjects = ["מדעים","ערבית","היסטוריה","מתמטיקה","אנגלית","גאוגרפיה","שפה"];
 const extraCategories = ["מפגש חברתי","ספורט","הצעות לשיפור או בקשות"];
-const allCategories = [...defaultSubjects, ...extraCategories];
 
 let currentGrade = null;
 let currentSubject = null;
 let selectedFile = null;
+let selectedLfFile = null; // Separate file for Lost & Found
 let unsubscribe = null;
+let lfUnsubscribe = null;
 let selectedSocialLocation = null;
 
 // --- GLOBAL VARIABLES ---
@@ -314,18 +357,15 @@ let isAdmin = false;
 
 // ---------------- AUTHENTICATION LOGIC ----------------
 
-// Helper function to check admin credentials
 function checkAdminCredentials(name, pass) {
     return name === ADMIN_NAME && pass === ADMIN_PASS;
 }
 
-// Helper function to get the Firebase-compatible email (no spaces)
 function getEmailFromName(name) {
-    const cleanName = name.trim().replace(/\s+/g, ''); // Strips all spaces for email
+    const cleanName = name.trim().replace(/\s+/g, ''); 
     return cleanName + "@school.local"; 
 }
 
-// Function to update the greeting based on the current full name and admin status
 function updateGreeting(name, isAdmin) {
     const greetingElement = document.getElementById("user-greeting");
     let greeting = `שלום, ${name}`; 
@@ -336,30 +376,19 @@ function updateGreeting(name, isAdmin) {
     greetingElement.innerText = greeting;
 }
 
-// Auth Listener: Checks if user is logged in
 auth.onAuthStateChanged(user => {
     if (user) {
-        // User is logged in
         currentUserId = user.uid;
-        
-        // The email prefix is the stripped name (used for admin check)
         const simpleName = user.email.split('@')[0]; 
         currentUserDisplayName = simpleName;
-        
-        // Determine admin status based on the logged-in email prefix
         isAdmin = (simpleName === ADMIN_NAME); 
 
-        // --- FETCH FULL NAME FROM LOCAL STORAGE ---
         const storedFullName = localStorage.getItem('fullUserName');
-        
-        // Use the stored name if available (for page refresh), otherwise use the stripped name
         let greetingName = storedFullName || simpleName; 
-        currentUserFullName = greetingName; // Set the global variable
+        currentUserFullName = greetingName;
         
-        // Update the greeting with the full name (or fallback)
         updateGreeting(greetingName, isAdmin);
         
-        // Check for new messages on the grade buttons when the user logs in/page loads
         checkNewContentStatus('ז');
         checkNewContentStatus('ח');
         checkNewContentStatus('ט');
@@ -367,21 +396,19 @@ auth.onAuthStateChanged(user => {
         document.getElementById("view-login").classList.add("hidden");
         document.getElementById("view-grades").classList.remove("hidden");
     } else {
-        // User is logged out
         currentUserId = null;
         isAdmin = false; 
         currentUserFullName = ""; 
         currentUserDisplayName = "";
-        
         localStorage.removeItem('fullUserName'); 
         
         document.getElementById("view-login").classList.remove("hidden");
         document.getElementById("view-grades").classList.add("hidden");
-        // Hide all other views just in case
         document.getElementById("view-subjects").classList.add("hidden");
         document.getElementById("view-form").classList.add("hidden");
         document.getElementById("view-sport-events").classList.add("hidden");
         document.getElementById("view-social-meeting").classList.add("hidden");
+        document.getElementById("view-lost-found").classList.add("hidden");
     }
 });
 
@@ -409,8 +436,7 @@ function handleRegister() {
     auth.createUserWithEmailAndPassword(email, pass)
         .then((userCredential) => {
             currentUserFullName = name; 
-            localStorage.setItem('fullUserName', name); // PERSIST FULL NAME
-            // Set initial login time for fresh new message checks
+            localStorage.setItem('fullUserName', name); 
             localStorage.setItem(`lastViewed_ז`, Date.now());
             localStorage.setItem(`lastViewed_ח`, Date.now());
             localStorage.setItem(`lastViewed_ט`, Date.now());
@@ -439,12 +465,11 @@ function handleLogin() {
         return;
     }
     
-    // Check for hardcoded admin login
     if (checkAdminCredentials(name, pass)) {
         auth.signInWithEmailAndPassword(getEmailFromName(ADMIN_NAME), pass)
             .then(() => {
                 currentUserFullName = name; 
-                localStorage.setItem('fullUserName', name); // PERSIST FULL NAME
+                localStorage.setItem('fullUserName', name); 
                 updateGreeting(name, true); 
             })
             .catch((error) => {
@@ -453,13 +478,12 @@ function handleLogin() {
         return;
     }
 
-    // Regular user login
     const email = getEmailFromName(name);
 
     auth.signInWithEmailAndPassword(email, pass)
         .then((userCredential) => {
              currentUserFullName = name; 
-             localStorage.setItem('fullUserName', name); // PERSIST FULL NAME
+             localStorage.setItem('fullUserName', name); 
              updateGreeting(name, false); 
              errorMsg.innerText = "";
         })
@@ -474,9 +498,8 @@ function handleLogout() {
     auth.signOut();
 }
 
-// ---------------- NEW CONTENT INDICATION LOGIC (FIXED) ----------------
+// ---------------- NEW CONTENT INDICATION LOGIC ----------------
 
-// Helper to remove any existing badge
 function removeBadge(element) {
     const badge = element.querySelector('.new-badge');
     if (badge) {
@@ -484,9 +507,7 @@ function removeBadge(element) {
     }
 }
 
-// Function to check content status for a specific grade
 function checkNewContentStatus(grade) {
-    // Ensure lastViewed is parsed as an integer, defaulting to 0 if missing
     const lastViewed = parseInt(localStorage.getItem(`lastViewed_${grade}`) || 0);
     const gradeButton = document.getElementById(`grade-${grade.toLowerCase()}-btn`);
 
@@ -495,12 +516,10 @@ function checkNewContentStatus(grade) {
     let hasNewContent = false;
     let collectionsToCheck = [];
 
-    // Collections: comments (regular subjects)
     defaultSubjects.forEach(sub => {
         collectionsToCheck.push(db.collection("grades").doc(grade).collection("subjects").doc(sub).collection("comments"));
     });
     
-    // Collections: sport_events and social_meetings (extra categories)
     collectionsToCheck.push(db.collection("grades").doc(grade).collection("sport_events"));
     collectionsToCheck.push(db.collection("grades").doc(grade).collection("social_meetings"));
     collectionsToCheck.push(db.collection("grades").doc(grade).collection("subjects").doc("הצעות לשיפור או בקשות").collection("comments"));
@@ -509,9 +528,7 @@ function checkNewContentStatus(grade) {
 
     const checkCollection = (index) => {
         if (hasNewContent || index >= collectionsToCheck.length) {
-            // Finished checking all collections or found new content
             if (hasNewContent) {
-                // Add new badge if new content found
                 gradeButton.innerHTML += '<span class="new-badge">!</span>';
             }
             return;
@@ -522,7 +539,6 @@ function checkNewContentStatus(grade) {
                 if (!snapshot.empty) {
                     const latestTimestampObj = snapshot.docs[0].data().timestamp;
                     
-                    // CRITICAL FIX: Ensure the timestamp object exists and convert to milliseconds
                     if (latestTimestampObj && typeof latestTimestampObj.toMillis === 'function') {
                         const latestTimestamp = latestTimestampObj.toMillis();
                         if (latestTimestamp > lastViewed) {
@@ -530,36 +546,31 @@ function checkNewContentStatus(grade) {
                         }
                     }
                 }
-                // Continue to the next collection
                 checkCollection(index + 1);
             })
             .catch(error => {
                 console.error(`Error checking collection ${index}:`, error.message);
-                // If you see a Firestore error here about "missing index", you must manually create it in the Firebase console.
                 checkCollection(index + 1);
             });
     };
 
-    // Start checking
     checkCollection(0);
 }
 
-// Function to set the last viewed timestamp for a grade (when entering a grade)
 function setGradeLastViewed(grade) {
     localStorage.setItem(`lastViewed_${grade}`, Date.now());
-    // Re-check status of all grades after setting one's last viewed time
     checkNewContentStatus('ז');
     checkNewContentStatus('ח');
     checkNewContentStatus('ט');
 }
 
-// ---------------- APP LOGIC ----------------
+// ---------------- NAVIGATION LOGIC ----------------
 
-// Open grade
 function openGrade(grade) {
   currentGrade = grade;
-  setGradeLastViewed(grade); // Mark grade as viewed NOW
+  setGradeLastViewed(grade); 
   document.getElementById("view-grades").classList.add("hidden");
+  document.getElementById("view-lost-found").classList.add("hidden");
   document.getElementById("view-subjects").classList.remove("hidden");
   document.getElementById("subject-title").innerText = "מקצועות בשכבת " + grade;
 
@@ -584,15 +595,14 @@ function openGrade(grade) {
   });
 }
 
-// Back navigation
 function backToGrades() {
   document.getElementById("view-subjects").classList.add("hidden");
   document.getElementById("view-form").classList.add("hidden");
   document.getElementById("view-sport-events").classList.add("hidden");
   document.getElementById("view-social-meeting").classList.add("hidden");
+  document.getElementById("view-lost-found").classList.add("hidden");
   document.getElementById("view-grades").classList.remove("hidden");
   
-  // Refresh new content badges when returning to grades
   checkNewContentStatus('ז');
   checkNewContentStatus('ח');
   checkNewContentStatus('ט');
@@ -606,7 +616,8 @@ function backToSubjects() {
   document.getElementById("view-subjects").classList.remove("hidden");
 }
 
-// IMAGE UPLOAD
+// ---------------- IMAGE UPLOAD HANDLING ----------------
+
 document.getElementById("imageInput").addEventListener("change", e => {
   selectedFile = e.target.files[0];
   const cancelBtn = document.getElementById("cancelImageBtn");
@@ -633,14 +644,41 @@ function cancelImage(){
   document.getElementById("cancelImageBtn").classList.add("hidden");
 }
 
-// Open form
+// Separate logic for Lost & Found Image
+document.getElementById("lfImageInput").addEventListener("change", e => {
+  selectedLfFile = e.target.files[0];
+  const cancelBtn = document.getElementById("cancelLfImageBtn");
+  const preview = document.getElementById("lf-preview");
+
+  if(selectedLfFile){
+    cancelBtn.classList.remove("hidden");
+    const reader = new FileReader();
+    reader.onload = e2 => {
+      preview.src = e2.target.result;
+      preview.classList.remove("hidden");
+    };
+    reader.readAsDataURL(selectedLfFile);
+  } else cancelLfImage();
+});
+
+function cancelLfImage(){
+  selectedLfFile = null;
+  const input = document.getElementById("lfImageInput");
+  const preview = document.getElementById("lf-preview");
+  input.value = "";
+  preview.src = "";
+  preview.classList.add("hidden");
+  document.getElementById("cancelLfImageBtn").classList.add("hidden");
+}
+
+// ---------------- SUBJECT COMMENTS & LIKES ----------------
+
 function openForm(subject) {
   currentSubject = subject;
   document.getElementById("view-subjects").classList.add("hidden");
   document.getElementById("view-form").classList.remove("hidden");
   document.getElementById("form-title").innerText = "הוספת הערה ל: " + subject;
   
-  // REQUIRED: Auto-fill user name with the FULL name (spaces included)
   document.getElementById("comment").value = currentUserFullName; 
   
   document.getElementById("description").value = "";
@@ -648,11 +686,8 @@ function openForm(subject) {
   loadNotes();
 }
 
-// Save comment
 async function saveSubject(parentCommentId = null) {
   const description = document.getElementById("description").value.trim();
-  
-  // ENFORCED NAME: The name for the comment/user fields is ALWAYS the logged-in user's full name.
   const commentUserName = currentUserFullName;
   
   if(!description){ alert("אנא כתוב תיאור"); return; }
@@ -671,11 +706,12 @@ async function saveSubject(parentCommentId = null) {
     await subjectRef.set({ createdAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
 
     const dataPayload = {
-        comment: commentUserName, // ENFORCED
+        comment: commentUserName, 
         description: description,
         imageUrl: imageUrl || "",
-        user: currentUserFullName, // ENFORCED
+        user: currentUserFullName, 
         userId: currentUserId,
+        likes: [], 
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -690,7 +726,6 @@ async function saveSubject(parentCommentId = null) {
     document.getElementById("description").value = "";
     cancelImage();
     
-    // After saving, mark the grade as viewed to clear the badge, as the user is actively viewing
     setGradeLastViewed(currentGrade); 
 
   } catch(err){
@@ -699,7 +734,6 @@ async function saveSubject(parentCommentId = null) {
   }
 }
 
-// Load notes with real-time updates
 function loadNotes() {
   const list = document.getElementById("notes-list");
   const ref = db.collection("grades").doc(currentGrade)
@@ -715,6 +749,15 @@ function loadNotes() {
       div.className="note";
       div.innerHTML=`<h4>${note.comment}</h4><p>${note.description}</p>`+
                     (note.imageUrl ? `<img src="${note.imageUrl}">` : "");
+
+      // Like Button
+      const likes = note.likes || [];
+      const isLiked = likes.includes(currentUserId);
+      const likeBtn = document.createElement("button");
+      likeBtn.innerHTML = isLiked ? `👍 (${likes.length})` : `🤍 (${likes.length})`;
+      likeBtn.style.background = isLiked ? "#388e3c" : "#1976d2"; 
+      likeBtn.onclick = () => toggleLike(doc.ref, isLiked);
+      div.appendChild(likeBtn);
 
       // Reply button
       const replyBtn = document.createElement("button");
@@ -738,12 +781,11 @@ function loadNotes() {
         }
       };
       
-      // Admin Check OR Owner Check
       if (isAdmin || note.userId === currentUserId) { 
           div.appendChild(deleteBtn);
       }
 
-      // Load replies in real-time
+      // Load replies
       doc.ref.collection("replies").orderBy("timestamp","asc").onSnapshot(replySnap=>{
         const oldReplies = div.querySelectorAll(".reply");
         oldReplies.forEach(r => r.remove());
@@ -752,7 +794,7 @@ function loadNotes() {
           const rDiv = document.createElement("div");
           rDiv.className="reply";
           rDiv.innerHTML=`<strong>${r.comment}</strong><p>${r.description}</p>`+
-                          (r.imageUrl ? `<img src="${r.imageUrl}">` : "");
+                           (r.imageUrl ? `<img src="${r.imageUrl}">` : "");
 
           const delReplyBtn = document.createElement("button");
           delReplyBtn.innerText = "🗑️ מחק";
@@ -764,7 +806,6 @@ function loadNotes() {
             }
           };
           
-          // Admin Check OR Owner Check
           if (isAdmin || r.userId === currentUserId) { 
               rDiv.appendChild(delReplyBtn);
           }
@@ -778,24 +819,209 @@ function loadNotes() {
   });
 }
 
-// Save reply
+function toggleLike(docRef, isLiked) {
+    if (isLiked) {
+        docRef.update({
+            likes: firebase.firestore.FieldValue.arrayRemove(currentUserId)
+        });
+    } else {
+        docRef.update({
+            likes: firebase.firestore.FieldValue.arrayUnion(currentUserId)
+        });
+    }
+}
+
 async function saveSubjectReply(parentCommentId, description){ 
   const subjectRef = db.collection("grades").doc(currentGrade)
                         .collection("subjects").doc(currentSubject);
   await subjectRef.collection("comments").doc(parentCommentId)
     .collection("replies").add({
-      comment: currentUserFullName, // ENFORCED
+      comment: currentUserFullName, 
       description,
-      user: currentUserFullName, // ENFORCED
+      user: currentUserFullName, 
       userId: currentUserId,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
     
-    // After saving, mark the grade as viewed
     setGradeLastViewed(currentGrade); 
 }
 
-// SPORT EVENTS
+// ---------------- GLOBAL LOST & FOUND ----------------
+
+function openLostAndFound() {
+    document.getElementById("view-grades").classList.add("hidden");
+    document.getElementById("view-lost-found").classList.remove("hidden");
+    document.getElementById("lf-comment").value = currentUserFullName;
+    document.getElementById("lf-description").value = "";
+    cancelLfImage();
+    loadLostItems();
+}
+
+async function saveLostItem() {
+    const description = document.getElementById("lf-description").value.trim();
+    if(!description){ alert("אנא כתוב תיאור"); return; }
+    
+    try {
+        let imageUrl = "";
+        if(selectedLfFile){
+            const storageRef = storage.ref();
+            const fileRef = storageRef.child(`global/lost_and_found/${Date.now()}-${selectedLfFile.name}`);
+            await fileRef.put(selectedLfFile);
+            imageUrl = await fileRef.getDownloadURL();
+        }
+        
+        await db.collection("global").doc("lost_and_found").collection("items").add({
+            description: description,
+            imageUrl: imageUrl || "",
+            user: currentUserFullName,
+            userId: currentUserId,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        alert("המודעה פורסמה!");
+        document.getElementById("lf-description").value = "";
+        cancelLfImage();
+        
+    } catch(err) {
+        console.error(err);
+        alert("שגיאה: " + err.message);
+    }
+}
+
+function loadLostItems() {
+    const list = document.getElementById("lf-list");
+    const ref = db.collection("global").doc("lost_and_found").collection("items").orderBy("timestamp", "desc");
+    
+    if(lfUnsubscribe) lfUnsubscribe();
+    lfUnsubscribe = ref.onSnapshot(snapshot => {
+        list.innerHTML = "";
+        snapshot.forEach(doc => {
+            const item = doc.data();
+            const div = document.createElement("div");
+            div.className = "lf-item";
+            div.innerHTML = `<h4>פורסם ע"י: ${item.user}</h4><p>${item.description}</p>` +
+                            (item.imageUrl ? `<img src="${item.imageUrl}">` : "");
+
+            // Reply/Comment logic for Lost & Found
+            const replyBtn = document.createElement("button");
+            replyBtn.innerText = "💬 הגב";
+            replyBtn.onclick = () => {
+                const replyText = prompt("כתוב תגובה:");
+                if(replyText) {
+                    doc.ref.collection("comments").add({
+                        user: currentUserFullName,
+                        text: replyText,
+                        userId: currentUserId,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            };
+            div.appendChild(replyBtn);
+
+            // Delete button
+            const deleteBtn = document.createElement("button");
+            deleteBtn.innerText = "🗑️ מחק";
+            deleteBtn.style.background = "#d32f2f";
+            deleteBtn.onclick = async () => {
+                if(confirm("למחוק מודעה זו?")) await doc.ref.delete();
+            };
+            if(isAdmin || item.userId === currentUserId) div.appendChild(deleteBtn);
+
+            // Load comments for this item
+            doc.ref.collection("comments").orderBy("timestamp", "asc").onSnapshot(cSnap => {
+                // remove old comments from DOM to avoid dupes
+                const oldComments = div.querySelectorAll(".reply");
+                oldComments.forEach(c => c.remove());
+                
+                cSnap.forEach(cDoc => {
+                    const cData = cDoc.data();
+                    const cDiv = document.createElement("div");
+                    cDiv.className = "reply";
+                    cDiv.innerHTML = `<strong>${cData.user}</strong>: ${cData.text}`;
+                    
+                    const delCBtn = document.createElement("button");
+                    delCBtn.innerText = "🗑️";
+                    delCBtn.style.background = "#d32f2f";
+                    delCBtn.style.fontSize = "1rem";
+                    delCBtn.style.padding = "2px 6px";
+                    delCBtn.onclick = async () => {
+                        if(confirm("למחוק תגובה?")) await cDoc.ref.delete();
+                    };
+                    if(isAdmin || cData.userId === currentUserId) cDiv.appendChild(delCBtn);
+                    
+                    div.appendChild(cDiv);
+                });
+            });
+
+            list.appendChild(div);
+        });
+    });
+}
+
+
+// ---------------- EVENT COMMENTS LOGIC (Sport & Social) ----------------
+
+function renderEventComments(docRef, containerDiv) {
+    containerDiv.innerHTML = ""; // Clear
+    
+    const inputDiv = document.createElement("div");
+    inputDiv.style.marginBottom = "10px";
+    
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "כתוב תגובה לאירוע...";
+    input.style.width = "70%";
+    input.style.display = "inline-block";
+    
+    const sendBtn = document.createElement("button");
+    sendBtn.innerText = "שלח";
+    sendBtn.style.width = "25%";
+    sendBtn.style.fontSize = "1.2rem";
+    sendBtn.onclick = () => {
+        const text = input.value.trim();
+        if(text) {
+            docRef.collection("comments").add({
+                user: currentUserFullName,
+                userId: currentUserId,
+                text: text,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            input.value = "";
+        }
+    };
+    
+    inputDiv.appendChild(input);
+    inputDiv.appendChild(sendBtn);
+    containerDiv.appendChild(inputDiv);
+    
+    const commentsList = document.createElement("div");
+    containerDiv.appendChild(commentsList);
+    
+    // Listen for comments
+    docRef.collection("comments").orderBy("timestamp", "asc").onSnapshot(snap => {
+        commentsList.innerHTML = "";
+        snap.forEach(cDoc => {
+            const cData = cDoc.data();
+            const cDiv = document.createElement("div");
+            cDiv.className = "reply"; // reuse reply style
+            cDiv.innerHTML = `<strong>${cData.user}</strong>: ${cData.text}`;
+            
+            const delBtn = document.createElement("button");
+            delBtn.innerText = "🗑️";
+            delBtn.style.background = "#d32f2f";
+            delBtn.style.fontSize = "1rem";
+            delBtn.style.padding = "2px 6px";
+            delBtn.onclick = async () => { if(confirm("למחוק?")) await cDoc.ref.delete(); };
+            
+            if(isAdmin || cData.userId === currentUserId) cDiv.appendChild(delBtn);
+            
+            commentsList.appendChild(cDiv);
+        });
+    });
+}
+
+// ---------------- SPORT EVENTS ----------------
+
 function openSportEvents(){
   document.getElementById("view-subjects").classList.add("hidden");
   document.getElementById("view-sport-events").classList.remove("hidden");
@@ -812,12 +1038,12 @@ function saveSportEvent(){
       name: eventName,
       date,
       time,
-      creator: currentUserFullName, // ENFORCED
+      creator: currentUserFullName, 
       userId: currentUserId,
+      attendees: [], 
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).then(()=> {
         loadSportEvents();
-        // After saving, mark the grade as viewed
         setGradeLastViewed(currentGrade); 
     });
 }
@@ -827,25 +1053,66 @@ function loadSportEvents(){
   list.innerHTML = "";
   db.collection("grades").doc(currentGrade)
     .collection("sport_events").orderBy("timestamp","desc")
-    .get().then(snapshot=>{
+    .onSnapshot(snapshot=>{
+      list.innerHTML = "";
       snapshot.forEach(doc=>{
         const e = doc.data();
         const div = document.createElement("div");
         div.className="event";
         div.innerHTML = `<strong>${e.name}</strong><br>${e.date} ${e.time}<br><small>נקבע ע"י: ${e.creator || '?'}</small>`;
 
+        // Attendance
+        const attendees = e.attendees || [];
+        const myAttendanceIndex = attendees.findIndex(a => a.uid === currentUserId);
+        const isAttending = myAttendanceIndex !== -1;
+
+        const attendBtn = document.createElement("button");
+        attendBtn.innerText = isAttending ? "❌ בטל הגעה" : "✋ אני מגיע";
+        attendBtn.style.background = isAttending ? "#f57c00" : "#43a047";
+        attendBtn.style.marginRight = "10px";
+        attendBtn.onclick = () => toggleAttendance(doc.ref, attendees, isAttending);
+        div.appendChild(attendBtn);
+
+        if(attendees.length > 0) {
+            const names = attendees.map(a => a.name).join(", ");
+            const attendeesDiv = document.createElement("div");
+            attendeesDiv.className = "attendees-list";
+            attendeesDiv.innerText = "מגיעים: " + names;
+            div.appendChild(attendeesDiv);
+        }
+
+        // --- NEW EVENT COMMENTS ---
+        const commentToggleBtn = document.createElement("button");
+        commentToggleBtn.innerText = "💬 תגובות";
+        commentToggleBtn.style.background = "#607d8b";
+        
+        const commentsSection = document.createElement("div");
+        commentsSection.className = "event-comments-section";
+        
+        // Render comments logic once toggled/created
+        let commentsLoaded = false;
+        commentToggleBtn.onclick = () => {
+             commentsSection.classList.toggle("open");
+             if(!commentsLoaded && commentsSection.classList.contains("open")) {
+                 renderEventComments(doc.ref, commentsSection);
+                 commentsLoaded = true;
+             }
+        };
+        
+        div.appendChild(commentToggleBtn);
+        div.appendChild(commentsSection);
+        // --------------------------
+
         const delBtn = document.createElement("button");
-        delBtn.innerText = "🗑️ מחק";
+        delBtn.innerText = "🗑️ מחק אירוע";
         delBtn.style.background = "#d32f2f";
         delBtn.style.marginLeft = "4px";
         delBtn.onclick = async () => {
           if(confirm("למחוק אירוע זה?")) {
             await doc.ref.delete();
-            loadSportEvents();
           }
         };
         
-        // Admin Check OR Owner Check
         if (isAdmin || e.userId === currentUserId) { 
             div.appendChild(delBtn);
         }
@@ -855,7 +1122,18 @@ function loadSportEvents(){
     });
 }
 
-// SOCIAL MEETING
+function toggleAttendance(docRef, currentAttendees, isAttending) {
+    let newAttendees = [...currentAttendees];
+    if (isAttending) {
+        newAttendees = newAttendees.filter(a => a.uid !== currentUserId);
+    } else {
+        newAttendees.push({ uid: currentUserId, name: currentUserFullName });
+    }
+    docRef.update({ attendees: newAttendees });
+}
+
+// ---------------- SOCIAL MEETINGS ----------------
+
 function openSocialMeeting(){
   document.getElementById("view-subjects").classList.add("hidden");
   document.getElementById("view-social-meeting").classList.remove("hidden");
@@ -878,12 +1156,12 @@ function saveSocialMeeting(){
       location: selectedSocialLocation,
       date,
       time,
-      creator: currentUserFullName, // ENFORCED
+      creator: currentUserFullName, 
       userId: currentUserId,
+      attendees: [],
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     }).then(()=> {
         loadSocialMeetings();
-        // After saving, mark the grade as viewed
         setGradeLastViewed(currentGrade); 
     });
 }
@@ -893,25 +1171,65 @@ function loadSocialMeetings(){
   list.innerHTML = "";
   db.collection("grades").doc(currentGrade)
     .collection("social_meetings").orderBy("timestamp","desc")
-    .get().then(snapshot=>{
+    .onSnapshot(snapshot=>{
+      list.innerHTML = "";
       snapshot.forEach(doc=>{
         const e = doc.data();
         const div = document.createElement("div");
         div.className="social";
         div.innerHTML = `<strong>${e.location}</strong><br>${e.date} ${e.time}<br><small>נקבע ע"י: ${e.creator || '?'}</small>`;
 
+        // Attendance
+        const attendees = e.attendees || [];
+        const myAttendanceIndex = attendees.findIndex(a => a.uid === currentUserId);
+        const isAttending = myAttendanceIndex !== -1;
+
+        const attendBtn = document.createElement("button");
+        attendBtn.innerText = isAttending ? "❌ בטל הגעה" : "✋ אני מגיע";
+        attendBtn.style.background = isAttending ? "#f57c00" : "#43a047";
+        attendBtn.style.marginRight = "10px";
+        attendBtn.onclick = () => toggleAttendance(doc.ref, attendees, isAttending);
+        div.appendChild(attendBtn);
+
+        if(attendees.length > 0) {
+            const names = attendees.map(a => a.name).join(", ");
+            const attendeesDiv = document.createElement("div");
+            attendeesDiv.className = "attendees-list";
+            attendeesDiv.innerText = "מגיעים: " + names;
+            div.appendChild(attendeesDiv);
+        }
+
+        // --- NEW EVENT COMMENTS ---
+        const commentToggleBtn = document.createElement("button");
+        commentToggleBtn.innerText = "💬 תגובות";
+        commentToggleBtn.style.background = "#607d8b";
+        
+        const commentsSection = document.createElement("div");
+        commentsSection.className = "event-comments-section";
+        
+        let commentsLoaded = false;
+        commentToggleBtn.onclick = () => {
+             commentsSection.classList.toggle("open");
+             if(!commentsLoaded && commentsSection.classList.contains("open")) {
+                 renderEventComments(doc.ref, commentsSection);
+                 commentsLoaded = true;
+             }
+        };
+        
+        div.appendChild(commentToggleBtn);
+        div.appendChild(commentsSection);
+        // --------------------------
+
         const delBtn = document.createElement("button");
-        delBtn.innerText = "🗑️ מחק";
+        delBtn.innerText = "🗑️ מחק אירוע";
         delBtn.style.background = "#d32f2f";
         delBtn.style.marginLeft = "4px";
         delBtn.onclick = async () => {
           if(confirm("למחוק מפגש זה?")) {
             await doc.ref.delete();
-            loadSocialMeetings();
           }
         };
         
-        // Admin Check OR Owner Check
         if (isAdmin || e.userId === currentUserId) { 
             div.appendChild(delBtn);
         }
