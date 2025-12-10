@@ -247,14 +247,14 @@ label {
     <button id="grade-t-btn" onclick="openGrade('ט')">ט</button>
 
     <hr style="width:80%; margin: 20px auto;">
-    <button onclick="openGlobalSearch()" style="background-color: #00796b;">🌎 חיפוש גלובלי (הערות ואירועים)</button>
-    <button onclick="openLostAndFound()" style="background-color: #ff9800;">🔎 אבדות ומציאות (כללי)</button>
+    <button onclick="openGlobalSearch()" style="background-color: #00796b;">🌎 חיפוש (הערות ואירועים)</button>
+    <button onclick="openLostAndFound()" style="background-color: #ff9800;">🔎 אבדות ומציאות </button>
 
     <button class="logout-btn" onclick="handleLogout()">יציאה</button>
   </div>
   
   <div id="view-global-search" class="hidden">
-    <h3>🌎 חיפוש גלובלי</h3>
+    <h3>🌎 חיפוש </h3>
     <p style="font-size: 0.9rem; color: #666;">מחפש הערות, אירועי ספורט ומפגשים חברתיים בכל השכבות.</p>
     <input type="text" id="search-global" class="search-input" placeholder="🔍 חפש תוכן, אירוע, או שם משתמש..." onkeyup="filterGlobalItems(this.value)">
     <div id="global-results-list">
@@ -1407,3 +1407,4 @@ function loadSocialMeetings(){
 </script>
 </body>
 </html>
+
