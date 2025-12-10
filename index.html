@@ -41,7 +41,8 @@ body {
 #view-form > :last-child,
 #view-sport-events > :last-child,
 #view-social-meeting > :last-child,
-#view-lost-found > :last-child {
+#view-lost-found > :last-child,
+#view-global-search > :last-child {
   margin-bottom: 70px; /* Give space above the fixed button if necessary */
 }
 
@@ -83,6 +84,18 @@ input[readonly] {
     cursor: not-allowed;
 }
 
+/* Search Input Specific Style */
+.search-input {
+    border: 2px solid #00796b; /* Changed color to match global button */
+    border-radius: 20px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300796b' width='18px' height='18px'%3E%3Cpath d='M0 0h24v24H0z' fill='none'/%3E%3Cpath d='M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left 10px center;
+    padding-left: 35px; /* Space for icon */
+}
+
 img#preview, img#lf-preview {
   max-width: 150px;
   max-height: 150px;
@@ -94,7 +107,7 @@ img#preview, img#lf-preview {
 
 img { max-width: 100%; margin: 8px 0; height: auto; }
 
-.note, .event, .social, .lf-item {
+.note, .event, .social, .lf-item, .global-result {
   border: 1px solid #ddd;
   padding: 8px;
   margin: 6px 0;
@@ -102,6 +115,11 @@ img { max-width: 100%; margin: 8px 0; height: auto; }
   text-align: right;
   word-wrap: break-word;
   font-size: 1.4rem;
+}
+/* Style for global search results */
+.global-result {
+    border-left: 5px solid #00796b; /* Teal color for global */
+    background-color: #e0f2f1;
 }
 
 .reply {
@@ -197,7 +215,7 @@ label {
   /* Ensure grade buttons and other buttons don't conflict with fixed logout button */
   button:not(.logout-btn) { width: 90%; padding: 6px; font-size: 1.2rem; margin: 3px 0; }
   input, textarea, select { padding: 6px; font-size: 1.2rem; }
-  .note, .event, .social, .lf-item { font-size: 1.2rem; padding: 6px; }
+  .note, .event, .social, .lf-item, .global-result { font-size: 1.2rem; padding: 6px; }
 }
 </style>
 </head>
@@ -229,9 +247,20 @@ label {
     <button id="grade-t-btn" onclick="openGrade('ט')">ט</button>
 
     <hr style="width:80%; margin: 20px auto;">
+    <button onclick="openGlobalSearch()" style="background-color: #00796b;">🌎 חיפוש גלובלי (הערות ואירועים)</button>
     <button onclick="openLostAndFound()" style="background-color: #ff9800;">🔎 אבדות ומציאות (כללי)</button>
 
     <button class="logout-btn" onclick="handleLogout()">יציאה</button>
+  </div>
+  
+  <div id="view-global-search" class="hidden">
+    <h3>🌎 חיפוש גלובלי</h3>
+    <p style="font-size: 0.9rem; color: #666;">מחפש הערות, אירועי ספורט ומפגשים חברתיים בכל השכבות.</p>
+    <input type="text" id="search-global" class="search-input" placeholder="🔍 חפש תוכן, אירוע, או שם משתמש..." onkeyup="filterGlobalItems(this.value)">
+    <div id="global-results-list">
+        <p>טוען תוצאות ראשוניות...</p>
+    </div>
+    <button onclick="backToGrades()">⬅ חזרה</button>
   </div>
 
   <div id="view-lost-found" class="hidden">
@@ -253,6 +282,7 @@ label {
 
   <div id="view-subjects" class="hidden">
     <h3 id="subject-title"></h3>
+    
     <div id="subject-list"></div>
     <h3>📂 קטגוריות נוספות</h3>
     <div id="category-list"></div>
@@ -268,6 +298,7 @@ label {
     <img id="preview" class="hidden"><br>
     <button onclick="saveSubject()">💾 שמור</button>
     <button onclick="backToSubjects()">⬅ חזרה</button>
+    
     <h3>📌 הערות שמורות</h3>
     <div id="notes-list"></div>
   </div>
@@ -285,6 +316,7 @@ label {
     <input type="time" id="sport-time"><br>
     <button onclick="saveSportEvent()">💾 שמור אירוע</button>
     <button onclick="backToSubjects()">⬅ חזרה</button>
+    
     <h3>📌 אירועים שמורים</h3>
     <div id="sport-events-list"></div>
   </div>
@@ -307,6 +339,7 @@ label {
       <button onclick="saveSocialMeeting()">💾 שמור מפגש</button>
     </div>
     <button onclick="backToSubjects()">⬅ חזרה</button>
+
     <h3>📌 מפגשים שמורים</h3>
     <div id="social-meetings-list"></div>
   </div>
@@ -338,16 +371,19 @@ const auth = firebase.auth();
 const ADMIN_NAME = "admin";
 const ADMIN_PASS = "admin";
 
+const GRADES = ['ז', 'ח', 'ט'];
 const defaultSubjects = ["מדעים","ערבית","היסטוריה","מתמטיקה","אנגלית","גאוגרפיה","שפה"];
 const extraCategories = ["מפגש חברתי","ספורט","הצעות לשיפור או בקשות"];
+const ALL_SUBJECTS = [...defaultSubjects, ...extraCategories.filter(c => c !== "ספורט" && c !== "מפגש חברתי")]; // Subjects that hold comments
 
 let currentGrade = null;
 let currentSubject = null;
 let selectedFile = null;
-let selectedLfFile = null; // Separate file for Lost & Found
+let selectedLfFile = null; 
 let unsubscribe = null;
 let lfUnsubscribe = null;
 let selectedSocialLocation = null;
+let globalResults = []; // Cache for global search results
 
 // --- GLOBAL VARIABLES ---
 let currentUserDisplayName = ""; 
@@ -409,6 +445,7 @@ auth.onAuthStateChanged(user => {
         document.getElementById("view-sport-events").classList.add("hidden");
         document.getElementById("view-social-meeting").classList.add("hidden");
         document.getElementById("view-lost-found").classList.add("hidden");
+        document.getElementById("view-global-search").classList.add("hidden");
     }
 });
 
@@ -564,6 +601,135 @@ function setGradeLastViewed(grade) {
     checkNewContentStatus('ט');
 }
 
+// ---------------- GLOBAL SEARCH LOGIC ----------------
+
+function openGlobalSearch() {
+    document.getElementById("view-grades").classList.add("hidden");
+    document.getElementById("view-global-search").classList.remove("hidden");
+    document.getElementById("search-global").value = "";
+    document.getElementById("global-results-list").innerHTML = '<p>טוען תוצאות ראשוניות...</p>';
+    
+    loadGlobalData();
+}
+
+async function loadGlobalData() {
+    globalResults = [];
+    const gradePromises = [];
+
+    GRADES.forEach(grade => {
+        // 1. Subject Comments (including "הצעות לשיפור...")
+        ALL_SUBJECTS.forEach(subject => {
+            const commentsRef = db.collection("grades").doc(grade)
+                                  .collection("subjects").doc(subject)
+                                  .collection("comments").orderBy("timestamp", "desc");
+            gradePromises.push(commentsRef.get().then(snapshot => {
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    globalResults.push({
+                        type: 'comment',
+                        grade,
+                        context: subject,
+                        text: data.description,
+                        user: data.comment,
+                        timestamp: data.timestamp
+                    });
+                });
+            }).catch(e => console.log(`Error loading comments for ${grade}/${subject}:`, e.message)));
+        });
+
+        // 2. Sport Events
+        const sportRef = db.collection("grades").doc(grade).collection("sport_events").orderBy("timestamp", "desc");
+        gradePromises.push(sportRef.get().then(snapshot => {
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                globalResults.push({
+                    type: 'sport',
+                    grade,
+                    context: data.name,
+                    text: `אירוע: ${data.name}, תאריך: ${data.date} שעה: ${data.time}`,
+                    user: data.creator,
+                    timestamp: data.timestamp
+                });
+            });
+        }).catch(e => console.log(`Error loading sport for ${grade}:`, e.message)));
+
+        // 3. Social Meetings
+        const socialRef = db.collection("grades").doc(grade).collection("social_meetings").orderBy("timestamp", "desc");
+        gradePromises.push(socialRef.get().then(snapshot => {
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                globalResults.push({
+                    type: 'social',
+                    grade,
+                    context: data.location,
+                    text: `מפגש: ${data.location}, תאריך: ${data.date} שעה: ${data.time}`,
+                    user: data.creator,
+                    timestamp: data.timestamp
+                });
+            });
+        }).catch(e => console.log(`Error loading social for ${grade}:`, e.message)));
+    });
+
+    await Promise.all(gradePromises);
+    
+    // Sort results by timestamp (newest first)
+    globalResults.sort((a, b) => {
+        const timeA = a.timestamp && typeof a.timestamp.toMillis === 'function' ? a.timestamp.toMillis() : 0;
+        const timeB = b.timestamp && typeof b.timestamp.toMillis === 'function' ? b.timestamp.toMillis() : 0;
+        return timeB - timeA;
+    });
+
+    renderGlobalResults(globalResults);
+}
+
+function renderGlobalResults(results) {
+    const list = document.getElementById("global-results-list");
+    list.innerHTML = "";
+
+    if (results.length === 0) {
+        list.innerHTML = "<p>לא נמצאו תוצאות תואמות.</p>";
+        return;
+    }
+
+    results.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "global-result";
+        
+        let typeIcon = '';
+        if (item.type === 'comment') typeIcon = '💬 הערה';
+        else if (item.type === 'sport') typeIcon = '⚽ אירוע ספורט';
+        else if (item.type === 'social') typeIcon = '🫂 מפגש חברתי';
+        
+        const timestampStr = item.timestamp 
+            ? new Date(item.timestamp.toMillis()).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })
+            : 'ללא תאריך';
+
+        div.innerHTML = `
+            <h4>${typeIcon} (${item.grade}) - ${item.context}</h4>
+            <p>${item.text}</p>
+            <small style="display:block; margin-top: 5px;">פורסם ע"י: ${item.user} | ב: ${timestampStr}</small>
+        `;
+        list.appendChild(div);
+    });
+}
+
+function filterGlobalItems(filter) {
+    const lowerCaseFilter = filter.toLowerCase().trim();
+    
+    if (lowerCaseFilter === "") {
+        renderGlobalResults(globalResults); // Show all cached results
+        return;
+    }
+
+    const filtered = globalResults.filter(item => {
+        // Search across content, context (subject/event name), and user name
+        const textToSearch = `${item.text} ${item.context} ${item.user} ${item.grade}`.toLowerCase();
+        return textToSearch.includes(lowerCaseFilter);
+    });
+
+    renderGlobalResults(filtered);
+}
+
 // ---------------- NAVIGATION LOGIC ----------------
 
 function openGrade(grade) {
@@ -571,9 +737,10 @@ function openGrade(grade) {
   setGradeLastViewed(grade); 
   document.getElementById("view-grades").classList.add("hidden");
   document.getElementById("view-lost-found").classList.add("hidden");
+  document.getElementById("view-global-search").classList.add("hidden");
   document.getElementById("view-subjects").classList.remove("hidden");
   document.getElementById("subject-title").innerText = "מקצועות בשכבת " + grade;
-
+  
   const subjectList = document.getElementById("subject-list");
   subjectList.innerHTML = "";
   defaultSubjects.forEach(sub => {
@@ -601,6 +768,7 @@ function backToGrades() {
   document.getElementById("view-sport-events").classList.add("hidden");
   document.getElementById("view-social-meeting").classList.add("hidden");
   document.getElementById("view-lost-found").classList.add("hidden");
+  document.getElementById("view-global-search").classList.add("hidden");
   document.getElementById("view-grades").classList.remove("hidden");
   
   checkNewContentStatus('ז');
@@ -850,6 +1018,7 @@ async function saveSubjectReply(parentCommentId, description){
 
 function openLostAndFound() {
     document.getElementById("view-grades").classList.add("hidden");
+    document.getElementById("view-global-search").classList.add("hidden");
     document.getElementById("view-lost-found").classList.remove("hidden");
     document.getElementById("lf-comment").value = currentUserFullName;
     document.getElementById("lf-description").value = "";
@@ -929,7 +1098,6 @@ function loadLostItems() {
 
             // Load comments for this item
             doc.ref.collection("comments").orderBy("timestamp", "asc").onSnapshot(cSnap => {
-                // remove old comments from DOM to avoid dupes
                 const oldComments = div.querySelectorAll(".reply");
                 oldComments.forEach(c => c.remove());
                 
@@ -997,13 +1165,12 @@ function renderEventComments(docRef, containerDiv) {
     const commentsList = document.createElement("div");
     containerDiv.appendChild(commentsList);
     
-    // Listen for comments
     docRef.collection("comments").orderBy("timestamp", "asc").onSnapshot(snap => {
         commentsList.innerHTML = "";
         snap.forEach(cDoc => {
             const cData = cDoc.data();
             const cDiv = document.createElement("div");
-            cDiv.className = "reply"; // reuse reply style
+            cDiv.className = "reply"; 
             cDiv.innerHTML = `<strong>${cData.user}</strong>: ${cData.text}`;
             
             const delBtn = document.createElement("button");
@@ -1089,7 +1256,6 @@ function loadSportEvents(){
         const commentsSection = document.createElement("div");
         commentsSection.className = "event-comments-section";
         
-        // Render comments logic once toggled/created
         let commentsLoaded = false;
         commentToggleBtn.onclick = () => {
              commentsSection.classList.toggle("open");
